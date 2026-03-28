@@ -1,0 +1,12 @@
+# Maven
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+# Env
+.env/*
+.env
+
+# IDE
+.idea/
+.vscode/
+*.iml

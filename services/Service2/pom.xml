@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ────────────────────────────────────────────────
+         service2 is a Python service. This POM is a pure
+         lifecycle wrapper — it does NOT inherit from
+         Spring Boot BOM, has no Java source, and performs
+         no compilation.
+
+         What it DOES:
+           generate-resources → uv sync (install Python deps)
+           package            → docker image build
+           verify             → pytest
+
+         The exec-plugin calls uv (or falls back to plain
+         pip + venv). Switch the <executable> and <arguments>
+         block if your CI agent uses a different toolchain.
+    ──────────────────────────────────────────────────── -->
+    <groupId>com.example</groupId>
+    <artifactId>service2</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <n>Service2 (Python)</n>
+
+    <build>
+        <plugins>
+
+            <!-- Step 1 — install Python dependencies via uv -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <!-- version inherited from root pluginManagement -->
+                <executions>
+
+                    <execution>
+                        <id>python-install-deps</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <!-- uv sync installs exactly what's in uv.lock (reproducible).
+                                 Replace with: python -m venv .venv && .venv/bin/pip install -r requirements.txt
+                                 if you prefer a plain venv workflow.                          -->
+                            <executable>uv</executable>
+                            <arguments>
+                                <argument>sync</argument>
+                                <argument>--frozen</argument>   <!-- fail if uv.lock is out of date -->
+                            </arguments>
+                            <workingDirectory>${project.basedir}</workingDirectory>
+                        </configuration>
+                    </execution>
+
+                    <!-- Step 2 — run pytest during verify phase -->
+                    <execution>
+                        <id>python-tests</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>uv</executable>
+                            <arguments>
+                                <argument>run</argument>
+                                <argument>pytest</argument>
+                                <argument>tests/</argument>
+                                <argument>-v</argument>
+                            </arguments>
+                            <workingDirectory>${project.basedir}</workingDirectory>
+                        </configuration>
+                    </execution>
+
+                </executions>
+            </plugin>
+
+            <!-- Step 3 — build Docker image (same plugin, same phase as Java services) -->
+            <plugin>
+                <groupId>com.spotify</groupId>
+                <artifactId>dockerfile-maven-plugin</artifactId>
+                <!-- version inherited from root pluginManagement -->
+                <configuration>
+                    <repository>${docker.registry}/service2</repository>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>
