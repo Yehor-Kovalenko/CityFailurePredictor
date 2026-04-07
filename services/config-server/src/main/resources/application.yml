@@ -1,0 +1,23 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-server
+
+  cloud:
+    config:
+      server:
+        git:
+          uri: git@github.com:Senegalion/CityFailurePredictor-ConfigServer.git
+          ignoreLocalSshSettings: false
+          strictHostKeyChecking: false
+          default-label: main
+          clone-on-start: true
+
+eureka:
+  instance:
+    instance-id: ${spring.application.name}:${server.port}
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
