@@ -1,12 +1,12 @@
 ## Prerequisites
 - Java 25
-- Docker installed
-- Maven installed
+- Docker and Docker compose installed
 
 ## General configuration steps
 1. Run eureka server (service-registry) (See dashboard at `http://localhost:8761/`)
 2. Run config server
-3. Run other services
+3. Run api gateway
+4. Run other services
 
 ---
 
