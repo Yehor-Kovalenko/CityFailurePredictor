@@ -14,6 +14,7 @@
     <modules>
         <module>services/service-registry</module>
         <module>services/config-server</module>
+        <module>services/api-gateway</module>
     </modules>
 
     <properties>
