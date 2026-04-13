@@ -1,29 +1,59 @@
-version: '3.9'
-
 services:
 
-  service1:
-    build:
-      context: ./services/service1
-      dockerfile: Dockerfile
-    container_name: service1
-    ports:
-      - "8081:8081"
+  # --- Infrastructure ---
 
-  service2:
+  service-registry:
     build:
-      context: ./services/service2
-      dockerfile: Dockerfile
-    container_name: service2
+      context: .
+      dockerfile: services/service-registry/Dockerfile
     ports:
-      - "8082:8082"
+      - "8761:8761"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: always
 
-#  gateway:
-#    build:
-#      context: ./services/gateway
-#    container_name: gateway
-#    ports:
-#      - "8080:8080"
-#    depends_on:
-#      - user-service
-#      - order-service
+  config-server:
+    build:
+      context: .
+      dockerfile: services/config-server/Dockerfile
+    ports:
+      - "8888:8888"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+    depends_on:
+      service-registry:
+        condition: service_healthy
+    volumes:
+      - ~/.ssh:/root/.ssh:ro
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8888/actuator/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: always
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    ports:
+      - "9191:9191"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9191/actuator/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: always
