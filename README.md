@@ -3,10 +3,10 @@
 - Docker and Docker compose installed
 
 ## General configuration steps
-1. Run eureka server (service-registry) (See dashboard at `http://localhost:8761/`)
-2. Run config server
-3. Run api gateway
-4. Run other services
+```bash
+docker compose down
+docker compose up -d --build
+```
 
 ---
 
