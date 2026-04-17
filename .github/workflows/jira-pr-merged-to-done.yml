@@ -1,0 +1,235 @@
+name: Jira – PR Merged → Done + Commit Links
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  move-to-done:
+    # Only run when PR is actually merged, not just closed
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo (to access commit history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract Jira issue key from branch name or PR title
+        id: extract
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+
+          ISSUE_KEY=$(echo "$BRANCH $PR_TITLE" | grep -oP '(?i)[A-Z][A-Z0-9]+-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]')
+
+          if [ -z "$ISSUE_KEY" ]; then
+            echo "No Jira issue key found in branch '$BRANCH' or PR title '$PR_TITLE'"
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            echo "issue_key=$ISSUE_KEY" >> $GITHUB_OUTPUT
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "Extracted issue key: $ISSUE_KEY"
+          fi
+
+      - name: Get commits from this PR
+        if: steps.extract.outputs.found == 'true'
+        id: commits
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.merge_commit_sha }}"
+          REPO="${{ github.repository }}"
+
+          # Get all commits in the PR (up to 30)
+          COMMITS_JSON=$(git log --oneline "$BASE_SHA..$HEAD_SHA" --format='{"sha":"%H","short":"%h","message":"%s"}' | head -30 | \
+            python3 -c "
+          import sys, json
+          lines = sys.stdin.read().strip().split('\n')
+          commits = []
+          for line in lines:
+              if line.strip():
+                  try:
+                      commits.append(json.loads(line))
+                  except:
+                      pass
+          print(json.dumps(commits))
+          ")
+
+          echo "commits_json=$COMMITS_JSON" >> $GITHUB_OUTPUT
+          echo "Commits found: $(echo $COMMITS_JSON | python3 -c 'import sys,json; print(len(json.loads(sys.stdin.read())))')"
+
+      - name: Get Jira transitions
+        if: steps.extract.outputs.found == 'true'
+        id: transitions
+        run: |
+          RESPONSE=$(curl -s \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${{ steps.extract.outputs.issue_key }}/transitions")
+          echo "transitions=$RESPONSE" >> $GITHUB_OUTPUT
+
+      - name: Move issue to Done
+        if: steps.extract.outputs.found == 'true'
+        run: |
+          ISSUE_KEY="${{ steps.extract.outputs.issue_key }}"
+
+          TRANSITION_ID=$(echo '${{ steps.transitions.outputs.transitions }}' | \
+            python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          transitions = data.get('transitions', [])
+          for t in transitions:
+              if t['name'].lower() in ['done', 'closed', 'complete', 'completed', 'resolved']:
+                  print(t['id'])
+                  break
+          ")
+
+          if [ -z "$TRANSITION_ID" ]; then
+            echo "ERROR: Could not find 'Done' transition."
+            echo "Available transitions:"
+            echo '${{ steps.transitions.outputs.transitions }}' | python3 -c "import sys,json; [print(f\"  - {t['id']}: {t['name']}\") for t in json.load(sys.stdin).get('transitions',[])]"
+            exit 1
+          fi
+
+          echo "Using transition ID: $TRANSITION_ID"
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d "{\"transition\": {\"id\": \"$TRANSITION_ID\"}}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/$ISSUE_KEY/transitions")
+
+          if [ "$HTTP_STATUS" -eq 204 ]; then
+            echo "✅ Successfully moved $ISSUE_KEY to Done"
+          else
+            echo "❌ Failed to transition issue. HTTP status: $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Add merge + commit links comment to Jira issue
+        if: steps.extract.outputs.found == 'true'
+        run: |
+          ISSUE_KEY="${{ steps.extract.outputs.issue_key }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
+          MERGED_BY="${{ github.event.pull_request.merged_by.login }}"
+          REPO="${{ github.repository }}"
+          BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+          COMMITS_JSON='${{ steps.commits.outputs.commits_json }}'
+
+          # Build commit list items for Jira ADF (Atlassian Document Format)
+          COMMIT_ITEMS=$(python3 -c "
+          import json, sys
+
+          commits = json.loads('''$COMMITS_JSON''')
+          repo = '$REPO'
+          items = []
+
+          for c in commits:
+              sha = c['sha']
+              short = c['short']
+              msg = c['message'].replace('\"', '\\\\\"')
+              url = f'https://github.com/{repo}/commit/{sha}'
+              item = {
+                  'type': 'listItem',
+                  'content': [{
+                      'type': 'paragraph',
+                      'content': [
+                          {'type': 'text', 'text': f'{short}: {msg}',
+                           'marks': [{'type': 'link', 'attrs': {'href': url}}]}
+                      ]
+                  }]
+              }
+              items.append(item)
+
+          print(json.dumps(items))
+          ")
+
+          # Build full ADF comment
+          COMMENT_BODY=$(python3 -c "
+          import json
+
+          pr_url = '$PR_URL'
+          pr_title = '$PR_TITLE'.replace(\"'\", \"'\")
+          pr_number = '$PR_NUMBER'
+          merge_sha = '$MERGE_SHA'
+          merged_by = '$MERGED_BY'
+          repo = '$REPO'
+          base_branch = '$BASE_BRANCH'
+          commit_items = json.loads('''$COMMIT_ITEMS''')
+
+          merge_commit_url = f'https://github.com/{repo}/commit/{merge_sha}'
+
+          doc = {
+              'body': {
+                  'type': 'doc',
+                  'version': 1,
+                  'content': [
+                      {
+                          'type': 'paragraph',
+                          'content': [
+                              {'type': 'emoji', 'attrs': {'shortName': ':white_check_mark:', 'text': '✅'}},
+                              {'type': 'text', 'text': f' PR #{pr_number} merged into {base_branch} by {merged_by}:'}
+                          ]
+                      },
+                      {
+                          'type': 'bulletList',
+                          'content': [
+                              {
+                                  'type': 'listItem',
+                                  'content': [{
+                                      'type': 'paragraph',
+                                      'content': [
+                                          {'type': 'text', 'text': f'PR: {pr_title}',
+                                           'marks': [{'type': 'link', 'attrs': {'href': pr_url}}]}
+                                      ]
+                                  }]
+                              },
+                              {
+                                  'type': 'listItem',
+                                  'content': [{
+                                      'type': 'paragraph',
+                                      'content': [
+                                          {'type': 'text', 'text': f'Merge commit: {merge_sha[:7]}',
+                                           'marks': [{'type': 'link', 'attrs': {'href': merge_commit_url}}]}
+                                      ]
+                                  }]
+                              }
+                          ]
+                      },
+                      {
+                          'type': 'paragraph',
+                          'content': [
+                              {'type': 'text', 'text': 'Commits included:', 'marks': [{'type': 'strong'}]}
+                          ]
+                      },
+                      {
+                          'type': 'bulletList',
+                          'content': commit_items if commit_items else [{
+                              'type': 'listItem',
+                              'content': [{'type': 'paragraph', 'content': [{'type': 'text', 'text': 'No individual commits found.'}]}]
+                          }]
+                      }
+                  ]
+              }
+          }
+
+          print(json.dumps(doc))
+          ")
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d "$COMMENT_BODY" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/$ISSUE_KEY/comment")
+
+          if [ "$HTTP_STATUS" -eq 201 ]; then
+            echo "✅ Merge + commit links comment added to $ISSUE_KEY"
+          else
+            echo "❌ Failed to add comment. HTTP status: $HTTP_STATUS"
+          fi
