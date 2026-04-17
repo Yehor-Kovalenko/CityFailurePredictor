@@ -1,0 +1,77 @@
+name: Jira – Branch → In Progress
+
+on:
+  create:
+    # Fires when any branch is created
+
+jobs:
+  move-to-in-progress:
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract Jira issue key from branch name
+        id: extract
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          # branch should just contain the issue key
+          ISSUE_KEY=$(echo "$BRANCH" | grep -oP '(?i)[A-Z][A-Z0-9]+-[0-9]+' | head -1 | tr '[:lower:]' '[:upper:]')
+          if [ -z "$ISSUE_KEY" ]; then
+            echo "No Jira issue key found in branch name: $BRANCH"
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            echo "issue_key=$ISSUE_KEY" >> $GITHUB_OUTPUT
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "Extracted issue key: $ISSUE_KEY"
+          fi
+
+      - name: Get Jira transitions
+        if: steps.extract.outputs.found == 'true'
+        id: transitions
+        run: |
+          RESPONSE=$(curl -s \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/${{ steps.extract.outputs.issue_key }}/transitions")
+          echo "transitions=$RESPONSE" >> $GITHUB_OUTPUT
+          echo "Available transitions: $RESPONSE"
+
+      - name: Move issue to In Progress
+        if: steps.extract.outputs.found == 'true'
+        run: |
+          ISSUE_KEY="${{ steps.extract.outputs.issue_key }}"
+
+          # Find the transition ID for "In Progress"
+          TRANSITION_ID=$(echo '${{ steps.transitions.outputs.transitions }}' | \
+            python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          transitions = data.get('transitions', [])
+          for t in transitions:
+              if t['name'].lower() in ['in progress', 'start progress', 'in development']:
+                  print(t['id'])
+                  break
+          ")
+
+          if [ -z "$TRANSITION_ID" ]; then
+            echo "ERROR: Could not find 'In Progress' transition."
+            echo "Available transitions:"
+            echo '${{ steps.transitions.outputs.transitions }}' | python3 -c "import sys,json; [print(f\"  - {t['id']}: {t['name']}\") for t in json.load(sys.stdin).get('transitions',[])]"
+            exit 1
+          fi
+
+          echo "Using transition ID: $TRANSITION_ID"
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d "{\"transition\": {\"id\": \"$TRANSITION_ID\"}}" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/$ISSUE_KEY/transitions")
+
+          if [ "$HTTP_STATUS" -eq 204 ]; then
+            echo "✅ Successfully moved $ISSUE_KEY to In Progress"
+          else
+            echo "❌ Failed to transition issue. HTTP status: $HTTP_STATUS"
+            exit 1
+          fi
