@@ -44,20 +44,20 @@ jobs:
         run: |
           ISSUE_KEY="${{ steps.extract.outputs.issue_key }}"
 
-          # Find the transition ID for "CODE REVIEW" (case-insensitive)
+          # Find the transition ID for "GH needs review transition" (case-insensitive)
           TRANSITION_ID=$(echo '${{ steps.transitions.outputs.transitions }}' | \
             python3 -c "
           import sys, json
           data = json.load(sys.stdin)
           transitions = data.get('transitions', [])
           for t in transitions:
-              if t['name'].lower() in ['code review', 'in review', 'review', 'pr review']:
+              if t['name'].lower() in ['GH needs review transition', 'needs review']:
                   print(t['id'])
                   break
           ")
 
           if [ -z "$TRANSITION_ID" ]; then
-            echo "ERROR: Could not find 'CODE REVIEW' transition."
+            echo "ERROR: Could not find 'NEEDS REVIEW' transition."
             echo "Available transitions:"
             echo '${{ steps.transitions.outputs.transitions }}' | python3 -c "import sys,json; [print(f\"  - {t['id']}: {t['name']}\") for t in json.load(sys.stdin).get('transitions',[])]"
             exit 1
