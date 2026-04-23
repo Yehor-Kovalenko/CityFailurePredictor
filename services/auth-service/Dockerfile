@@ -5,5 +5,5 @@ COPY services ./services
 RUN mvn -B clean package -DskipTests
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-COPY --from=builder /build/services/service-registry/target/*.jar app.jar
+COPY --from=builder /build/services/auth-service/target/*.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
