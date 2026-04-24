@@ -101,3 +101,47 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+
+
+  # --- Databases ---
+
+  postgres-auth:
+    image: postgres:15
+    container_name: postgres-auth
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d auth_db" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: always
+
+
+  # --- Services ---
+
+  auth-service:
+    container_name: auth-service
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    restart: always
+
+
+volumes:
+  postgres_auth_data:

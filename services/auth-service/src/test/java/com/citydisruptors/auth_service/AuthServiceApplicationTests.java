@@ -1,10 +1,12 @@
-package com.citydisruptors.service_registry;
+package com.citydisruptors.auth_service;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
-class ServiceRegistryApplicationTests {
+@ActiveProfiles("test")
+class AuthServiceApplicationTests {
 
     @Test
     void contextLoads() {

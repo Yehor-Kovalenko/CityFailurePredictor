@@ -7,18 +7,20 @@ spring:
 
   cloud:
     gateway:
+      default-filters:
+        - PreserveHostHeader
       routes:
-        - id: example-service
-          uri: lb://EXAMPLE-SERVICE
+        - id: auth-service
+          uri: lb://auth-service
           predicates:
-            - Path=/example/**
+            - Path=/auth/**,/oauth2/**,/login/**
 
 eureka:
   instance:
     instance-id: ${spring.application.name}:${server.port}
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://service-registry:8761/eureka/
 
 management:
   endpoints:
@@ -29,3 +31,7 @@ management:
   endpoint:
     health:
       show-details: always
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
