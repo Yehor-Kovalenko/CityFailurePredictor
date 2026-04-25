@@ -22,3 +22,17 @@ eureka:
   client:
     service-url:
       defaultZone: http://service-registry:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+  metrics:
+    tags:
+      application: ${spring.application.name}

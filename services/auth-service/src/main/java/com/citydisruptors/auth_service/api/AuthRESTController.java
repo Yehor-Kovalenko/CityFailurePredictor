@@ -2,6 +2,9 @@ package com.citydisruptors.auth_service.api;
 
 import com.citydisruptors.auth_service.api.dto.AuthResponse;
 import com.citydisruptors.auth_service.service.OAuthService;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -17,20 +20,31 @@ public class AuthRESTController {
 
     private final OAuthService oAuthService;
 
-    public AuthRESTController(OAuthService oAuthService) {
+    private final Counter testCounter;
+    private final Timer testTimer;
+
+    public AuthRESTController(OAuthService oAuthService, MeterRegistry registry) {
         this.oAuthService = oAuthService;
+
+        this.testCounter = Counter.builder("auth.test.calls")
+                .description("Calls to /auth/test")
+                .register(registry);
+
+        this.testTimer = registry.timer("auth.test.duration");
     }
 
     @GetMapping("/success")
     public ResponseEntity<AuthResponse> success(@AuthenticationPrincipal OAuth2User principal) {
 
         var result = oAuthService.processGoogleUser(principal);
-
         return ResponseEntity.ok(toResponse(result));
     }
 
     @GetMapping("/test")
     public String test() {
-        return "AUTH OK";
+        return testTimer.record(() -> {
+            testCounter.increment();
+            return "AUTH OK";
+        });
     }
 }
