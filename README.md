@@ -122,3 +122,25 @@ histogram_quantile(0.95, rate(auth_login_duration_seconds_bucket[5m]))
 ```
 rate(http_server_requests_seconds_count[1m]) by (status)
 ```
+
+---
+
+## Logging configuration
+
+Every running service writes logs to the shared volume which then being served by Loki to Grafana. Every log entry should have the `correlationId` that allows to connect log entries from multiple services into one request flow
+Here is example log entry:
+```json
+{
+  "message": "Request GET /api/test -> 200",
+  "correlationId": "abc-123",
+  "service": "api-gateway",
+  "level": "INFO"
+}
+```
+
+Example queries
+```
+{correlationId="abc-123"} #trace by correlationId
+{service-name="api-gateway"} #trace by service logs
+```
+
