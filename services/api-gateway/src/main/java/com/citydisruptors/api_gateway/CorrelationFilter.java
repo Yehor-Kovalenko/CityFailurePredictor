@@ -18,9 +18,9 @@ public class CorrelationFilter extends OncePerRequestFilter {
         String correlationId = Optional
                 .ofNullable(request.getHeader("X-Correlation-ID"))
                 .orElse(UUID.randomUUID().toString());
-        System.out.println("Qwerty: " + correlationId);
         MDC.put("correlationId", correlationId);
         response.setHeader("X-Correlation-ID", correlationId);
+        logger.info("Correlation ID: " + correlationId);
         try {
             filterChain.doFilter(request, response);
         } finally {

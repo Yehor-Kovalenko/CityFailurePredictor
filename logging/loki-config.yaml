@@ -5,7 +5,7 @@ server:
   log_level: warn     # set to info to DEBUG LOKI
 
 common:
-  instance_addr: 0.0.0.0
+  instance_addr: 127.0.0.1
   path_prefix: /loki
   replication_factor: 1
   ring:
@@ -34,7 +34,6 @@ storage_config:
     directory: /loki/chunks
 
 limits_config:
-  # How far back you can query (change to suit your needs)
   retention_period: 168h      # 7 days
 
   # Ingestion rate limits (per label-set stream)

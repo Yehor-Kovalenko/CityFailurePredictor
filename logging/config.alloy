@@ -18,7 +18,6 @@ loki.process "enrich" {
       correlationId = "",
       service       = "",
       level         = "",
-      traceId       = "",
     }
   }
 
@@ -28,13 +27,6 @@ loki.process "enrich" {
       correlationId = "",
       service       = "",
       level         = "",
-    }
-  }
-
-  // Keep traceId in structured metadata (not a label — high cardinality)
-  stage.structured_metadata {
-    values = {
-      traceId = "",
     }
   }
 }
