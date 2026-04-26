@@ -1,0 +1,46 @@
+<configuration>
+    <springProperty scope="context" name="LOG_FILE"
+                    source="LOG_FILE"
+                    defaultValue="/var/log/services/service.log"/>
+    <springProperty scope="context" name="LOG_LEVEL_ROOT"
+                    source="LOG_LEVEL_ROOT"  defaultValue="INFO"/>
+    <springProperty scope="context" name="LOG_LEVEL_APP"
+                    source="LOG_LEVEL_APP"   defaultValue="INFO"/>
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.gz</fileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- Fields that Alloy will promote to Loki labels -->
+            <customFields>{"service":"${spring.application.name}"}</customFields>
+            <includeMdcKeyName>correlationId</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Log levels -->
+    <root level="${LOG_LEVEL_ROOT}">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <logger name="com.citydisruptors" level="${LOG_LEVEL_APP}" additivity="false">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Silence noisy libraries -->
+    <logger name="com.netflix.eureka"        level="WARN"/>
+    <logger name="com.netflix.discovery"     level="WARN"/>
+    <logger name="org.springframework.cloud" level="WARN"/>
+    <logger name="org.springframework.web"   level="WARN"/>
+
+</configuration>

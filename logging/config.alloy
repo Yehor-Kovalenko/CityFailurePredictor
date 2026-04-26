@@ -1,0 +1,46 @@
+local.file_match "services" {
+  path_targets = [{
+    __path__ = "/var/log/services/*.log",
+  }]
+}
+
+loki.source.file "tail" {
+  targets    = local.file_match.services.targets
+  forward_to = [loki.process.enrich.receiver]
+}
+
+loki.process "enrich" {
+  forward_to = [loki.write.loki_out.receiver]
+
+  // Parse the JSON log line
+  stage.json {
+    expressions = {
+      correlationId = "",
+      service       = "",
+      level         = "",
+      traceId       = "",
+    }
+  }
+
+  // Promote fields to Loki labels (indexed, filterable)
+  stage.labels {
+    values = {
+      correlationId = "",
+      service       = "",
+      level         = "",
+    }
+  }
+
+  // Keep traceId in structured metadata (not a label — high cardinality)
+  stage.structured_metadata {
+    values = {
+      traceId = "",
+    }
+  }
+}
+
+loki.write "loki_out" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
