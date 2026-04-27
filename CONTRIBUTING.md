@@ -5,3 +5,5 @@ The document describes general rules and enforced recommendations for anyone dec
 When you want to add new microservice please do not forget to:
 - Add path filter predicate to the ApiGateway properties + predicate for swagger (`<new-service-name>/**`)
 - Add correlationId filter that will pass the correlation id, handle one or generate a new one and save to logs
+- Add `log-volume` to the service alongside with `LOG_FILE` env variable in the docker-compose.yml
+- Add log configuration file (could be copy-pasted from another service) under resources directory
