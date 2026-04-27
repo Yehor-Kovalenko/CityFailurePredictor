@@ -19,6 +19,16 @@ In order to access the ConfigServer config registry, ONLY ONCE you need to do th
 5. ssh -T git@github.com
 
 ---
+## How to access documentation
+
+Documentation from all services are aggregated at the Gateway service. So there is two ways:
+1. Open base url of the gateway service and append `/swagger-ui.html`
+2. Open base url of the desired service and append `/swagger-ui.html`
+
+Enjoy your Swagger endpoint documentation!
+
+---
+
 
 # 📊 Observability (Prometheus + Grafana)
 

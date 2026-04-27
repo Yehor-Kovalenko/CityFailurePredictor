@@ -13,7 +13,9 @@ spring:
         - id: auth-service
           uri: lb://auth-service
           predicates:
-            - Path=/auth/**,/oauth2/**,/login/**
+            - Path=/auth/**,/oauth2/**,/login/**, /auth-service/**
+          filters:
+            - StripPrefix=1
 
 eureka:
   instance:
@@ -40,3 +42,8 @@ logging:
   level:
     org.springframework.cloud.gateway: INFO
   config: classpath:logback-spring.xml
+
+springdoc:
+  swagger-ui:
+    urls-primary-name: api-gateway
+    config-url: /swagger-config

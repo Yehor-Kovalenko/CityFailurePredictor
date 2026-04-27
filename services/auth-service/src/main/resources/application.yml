@@ -15,3 +15,7 @@ logging:
   level:
     org.hibernate.SQL: WARN
   config: classpath:logback-spring.xml
+
+app:
+  swagger:
+    allowed: true

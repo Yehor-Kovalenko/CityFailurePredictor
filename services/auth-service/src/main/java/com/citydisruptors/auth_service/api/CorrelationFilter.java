@@ -29,7 +29,6 @@ public class CorrelationFilter extends OncePerRequestFilter {
                                     FilterChain chain)
             throws ServletException, IOException {
 
-        logger.info("Incoming {} {}", request.getMethod(), request.getRequestURI());
         if (request.getRequestURI().startsWith("/actuator")) {
             chain.doFilter(request, response);
             return;
