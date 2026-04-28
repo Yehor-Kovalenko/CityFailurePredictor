@@ -4,7 +4,18 @@ server:
 spring:
   application:
     name: auth-service
+  jpa:
+    show-sql: false
 
   config:
     label: main
     import: "optional:configserver:http://config-server:8888"
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+  config: classpath:logback-spring.xml
+
+app:
+  swagger:
+    allowed: true

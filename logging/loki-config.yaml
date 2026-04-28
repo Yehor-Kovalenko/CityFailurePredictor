@@ -1,0 +1,54 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  log_level: warn     # set to info to DEBUG LOKI
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13          # latest schema — always use v13 for new installs
+      index:
+        prefix: index_
+        period: 24h        # one index file per day
+
+storage_config:
+  filesystem:
+    directory: /loki/chunks
+
+limits_config:
+  retention_period: 168h      # 7 days
+
+  # Ingestion rate limits (per label-set stream)
+  ingestion_rate_mb: 8
+  ingestion_burst_size_mb: 16
+
+  # Reject logs older than this (prevents backfill floods)
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+
+  # Allow structured metadata fields pushed by Alloy
+  allow_structured_metadata: true
+
+  # Maximum number of unique label+value combinations per stream
+  max_streams_per_user: 10000
+
+analytics:
+  reporting_enabled: false   # opt out of anonymous usage reporting

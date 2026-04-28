@@ -5,6 +5,7 @@ import com.citydisruptors.auth_service.entity.dto.AuthResult;
 import com.citydisruptors.auth_service.service.OAuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -23,6 +24,9 @@ public class SecurityConfig {
     private final OAuthService oAuthService;
     private final ObjectMapper objectMapper;
     private final JwtService jwtService;
+
+    @Value("${app.swagger.allowed:false}")
+    private boolean isSwaggerAllowed = false;
 
     public SecurityConfig(OAuthService oAuthService,
                           ObjectMapper objectMapper,
@@ -52,11 +56,16 @@ public class SecurityConfig {
                         })
                 )
 
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                        .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers("/actuator/**").permitAll();
+                    auth.requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll();
+
+                    if (isSwaggerAllowed) {
+                        auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+                    }
+
+                    auth.anyRequest().authenticated();
+                })
 
                 .oauth2Login(oauth -> oauth
                         .successHandler((request, response, authentication) -> {

@@ -48,11 +48,14 @@ services:
       - "9191:9191"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      LOG_FILE: /var/log/services/api-gateway.log
     depends_on:
       service-registry:
         condition: service_healthy
       config-server:
         condition: service_healthy
+    volumes:
+      - log-volume:/var/log/services
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9191/actuator/health" ]
       interval: 5s
@@ -135,15 +138,18 @@ services:
       - "8083:8083"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      LOG_FILE: /var/log/services/auth-service.log
     depends_on:
       postgres-auth:
         condition: service_healthy
       config-server:
         condition: service_healthy
+    volumes:
+      - log-volume:/var/log/services
     restart: always
 
 
-  # --- Monitoring ---
+  # --- Monitoring  ---
 
   prometheus:
     image: prom/prometheus:v2.52.0
@@ -156,6 +162,30 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
     restart: unless-stopped
 
+  # --- Logging ---
+  alloy:
+    image: grafana/alloy:latest
+    volumes:
+      - ./logging/config.alloy:/etc/alloy/config.alloy:ro
+      - log-volume:/var/log/services:ro
+    command: run /etc/alloy/config.alloy
+    depends_on:
+      - loki
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./logging/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    healthcheck:
+      test: [  "CMD", "curl", "-f", "http://localhost:3100/ready || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   grafana:
     image: grafana/grafana:10.4.2
     container_name: grafana
@@ -165,12 +195,16 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
     volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
     restart: unless-stopped
     depends_on:
       - prometheus
+      - loki
 
 
 volumes:
   postgres_auth_data:
   grafana_data:
+  log-volume:
+  loki-data:

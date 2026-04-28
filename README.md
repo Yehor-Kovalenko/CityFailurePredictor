@@ -19,48 +19,16 @@ In order to access the ConfigServer config registry, ONLY ONCE you need to do th
 5. ssh -T git@github.com
 
 ---
+## How to access documentation
 
-## 🔐 Auth Service (Google OAuth2 + JWT)
+Documentation from all services are aggregated at the Gateway service. So there is two ways:
+1. Open base url of the gateway service and append `/swagger-ui.html`
+2. Open base url of the desired service and append `/swagger-ui.html`
 
-The system uses a dedicated **auth-service** responsible for authentication and token issuance.
-
-### Authentication flow
-
-1. User is redirected to Google OAuth2
-2. After successful login:
-    - user is created (if not exists)
-    - JWT token is generated
-3. Token must be used in all secured requests
-
-## Available endpoints
-
-### Login via Google
-
-```http
-GET /oauth2/authorization/google
-```
-
-**Example:**
-
-```
-http://localhost:9191/oauth2/authorization/google
-```
-
-**Response:**
-
-```json
-{
-  "accessToken": "...",
-  "tokenType": "Bearer",
-  "expiresIn": 86400,
-  "user": {
-    "email": "...",
-    "role": "ROLE_USER"
-  }
-}
-```
+Enjoy your Swagger endpoint documentation!
 
 ---
+
 
 # 📊 Observability (Prometheus + Grafana)
 
@@ -164,3 +132,25 @@ histogram_quantile(0.95, rate(auth_login_duration_seconds_bucket[5m]))
 ```
 rate(http_server_requests_seconds_count[1m]) by (status)
 ```
+
+---
+
+## Logging configuration
+
+Every running service writes logs to the shared volume which then being served by Loki to Grafana. Every log entry should have the `correlationId` that allows to connect log entries from multiple services into one request flow
+Here is example log entry:
+```json
+{
+  "message": "Request GET /api/test -> 200",
+  "correlationId": "abc-123",
+  "service": "api-gateway",
+  "level": "INFO"
+}
+```
+
+Example queries
+```
+{correlationId="abc-123"} #trace by correlationId
+{service-name="api-gateway"} #trace by service logs
+```
+
