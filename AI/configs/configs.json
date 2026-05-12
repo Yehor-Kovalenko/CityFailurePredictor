@@ -1,0 +1,11 @@
+{
+    "anomaly_detection": {
+        "model_type": "lstm",
+        "model_version": "v1"
+    },
+
+    "load_prediction": {
+        "model_type": "rf",
+        "model_version": "v2"
+    }
+}
