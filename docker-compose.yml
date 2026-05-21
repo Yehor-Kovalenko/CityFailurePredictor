@@ -148,6 +148,23 @@ services:
       - log-volume:/var/log/services
     restart: always
 
+  incident-service:
+    container_name: incident-service
+    build:
+      context: .
+      dockerfile: services/incident-service/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      LOG_FILE: /var/log/services/incident-service.log
+    depends_on:
+      config-server:
+        condition: service_healthy
+    volumes:
+      - log-volume:/var/log/services
+    restart: always
+
 
   # --- Monitoring  ---
 

@@ -1,0 +1,24 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: incident-service
+  jpa:
+    show-sql: false
+
+  config:
+    label: main
+    import: "optional:configserver:http://config-server:8888"
+
+eureka:
+  instance:
+    instance-id: ${spring.application.name}:${server.port}
+  client:
+    service-url:
+      defaultZone: http://service-registry:8761/eureka/
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+  config: classpath:logback-spring.xml
