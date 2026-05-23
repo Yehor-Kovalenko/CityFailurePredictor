@@ -4,8 +4,19 @@ server:
 spring:
   application:
     name: incident-service
+
   jpa:
     show-sql: false
+
+  datasource:
+    url: jdbc:postgresql://postgres-auth:5432/incidents_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
   config:
     label: main
@@ -22,3 +33,17 @@ logging:
   level:
     org.hibernate.SQL: WARN
   config: classpath:logback-spring.xml
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+  metrics:
+    tags:
+      application: ${spring.application.name}

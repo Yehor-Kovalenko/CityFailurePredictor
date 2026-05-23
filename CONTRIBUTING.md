@@ -11,3 +11,4 @@ When you want to add new microservice please do not forget to:
 - Add requirem pom dependencies (discovery, prometheus, logging, config, swagger)
 - Add job name in the `prometheus.yml` to collect metrics for the newly added service
 - Add GlobalExceptionHandler to monitor exception with prometheus
+- Add management endpoints config to the `application.yml`

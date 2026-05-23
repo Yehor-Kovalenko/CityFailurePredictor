@@ -31,16 +31,16 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
-
-        registry.counter("app.errors.total", "type", "internal_error").increment();
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(
-                        "INTERNAL_ERROR",
-                        ex.getMessage(),
-                        LocalDateTime.now()
-                ));
-    }
+//    @ExceptionHandler(Exception.class)
+//    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+//
+//        registry.counter("app.errors.total", "type", "internal_error").increment();
+//
+//        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                .body(new ErrorResponse(
+//                        "INTERNAL_ERROR",
+//                        ex.getMessage(),
+//                        LocalDateTime.now()
+//                ));
+//    }
 }

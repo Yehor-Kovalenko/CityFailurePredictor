@@ -9,8 +9,7 @@ import java.util.UUID;
 @Table(name = "incidents")
 public class Incident {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private UUID id;
+    private UUID id = UUID.randomUUID();
 
     @Column(nullable = false)
     private String incidentTitle;
@@ -34,6 +33,7 @@ public class Incident {
     @PrePersist
     protected void onCreate() {
         this.timestamp = Instant.now();
+        this.lastUpdated = this.timestamp;
     }
 
     @PreUpdate
