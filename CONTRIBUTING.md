@@ -10,3 +10,4 @@ When you want to add new microservice please do not forget to:
 - Add log configuration file (could be copy-pasted from another service) under resources directory
 - Add requirem pom dependencies (discovery, prometheus, logging, config, swagger)
 - Add job name in the `prometheus.yml` to collect metrics for the newly added service
+- Add GlobalExceptionHandler to monitor exception with prometheus
