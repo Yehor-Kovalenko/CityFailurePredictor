@@ -9,7 +9,7 @@ spring:
     show-sql: false
 
   datasource:
-    url: jdbc:postgresql://postgres-auth:5432/incidents_db
+    url: jdbc:postgresql://postgres-incidents:5432/incidents_db
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver

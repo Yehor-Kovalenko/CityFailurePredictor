@@ -1,7 +1,9 @@
 package com.citydisruptors.incidentservice.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
 
+import java.sql.Types;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -9,6 +11,7 @@ import java.util.UUID;
 @Table(name = "incidents")
 public class Incident {
     @Id
+    @JdbcTypeCode(Types.VARCHAR)
     private UUID id = UUID.randomUUID();
 
     @Column(nullable = false)
