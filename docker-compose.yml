@@ -126,6 +126,22 @@ services:
       retries: 10
     restart: always
 
+  postgres-incidents:
+    image: postgres:15
+    container_name: postgres-incidents
+    environment:
+      POSTGRES_DB: incidents_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_incidents_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d incidents_db" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: always
+
 
   # --- Services ---
 
@@ -141,6 +157,26 @@ services:
       LOG_FILE: /var/log/services/auth-service.log
     depends_on:
       postgres-auth:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    volumes:
+      - log-volume:/var/log/services
+    restart: always
+
+  incident-service:
+    container_name: incident-service
+    build:
+      context: .
+      dockerfile: services/incident-service/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      LOG_FILE: /var/log/services/incident-service.log
+#      JAVA_TOOL_OPTIONS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    depends_on:
+      postgres-incidents:
         condition: service_healthy
       config-server:
         condition: service_healthy
@@ -205,6 +241,7 @@ services:
 
 volumes:
   postgres_auth_data:
+  postgres_incidents_data:
   grafana_data:
   log-volume:
   loki-data:
