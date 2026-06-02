@@ -174,7 +174,7 @@ services:
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/incident-service.log
-#      JAVA_TOOL_OPTIONS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    #      JAVA_TOOL_OPTIONS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
     depends_on:
       postgres-incidents:
         condition: service_healthy
@@ -182,6 +182,36 @@ services:
         condition: service_healthy
     volumes:
       - log-volume:/var/log/services
+    restart: always
+
+  data-ingestion-service:
+    container_name: data-ingestion-service
+    build:
+      context: .
+      dockerfile: services/data-ingestion-service/Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      LOG_FILE: /var/log/services/data-ingestion-service.log
+      DATASET_PATH: /data/low-carbon-london
+    depends_on:
+      kafka:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+    volumes:
+      - log-volume:/var/log/services
+      - ./datasets/low-carbon-london:/data/low-carbon-london:ro
+      - ./datasets/sample:/data/sample:ro
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8084/actuator/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
     restart: always
 
 
@@ -217,7 +247,7 @@ services:
       - loki-data:/loki
     command: -config.file=/etc/loki/local-config.yaml
     healthcheck:
-      test: [  "CMD", "curl", "-f", "http://localhost:3100/ready || exit 1" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:3100/ready || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5

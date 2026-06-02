@@ -28,3 +28,8 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['service-registry:8761']
+
+  - job_name: 'data-ingestion-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['data-ingestion-service:8084']

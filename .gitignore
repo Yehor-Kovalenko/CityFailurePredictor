@@ -32,3 +32,9 @@ out/
 
 # Build
 build/
+
+# Datasets
+/datasets/low-carbon-london/
+*.zip
+*.csv
+!datasets/sample/*.csv
