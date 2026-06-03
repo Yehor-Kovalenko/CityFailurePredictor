@@ -142,6 +142,36 @@ services:
       retries: 10
     restart: always
 
+  timescaledb-ingestion:
+    image: timescale/timescaledb:latest-pg15
+    container_name: timescaledb-ingestion
+    environment:
+      POSTGRES_DB: ingestion_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - timescaledb_ingestion_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d ingestion_db" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: always
+
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: always
+
 
   # --- Services ---
 
@@ -201,6 +231,10 @@ services:
       config-server:
         condition: service_healthy
       service-registry:
+        condition: service_healthy
+      timescaledb-ingestion:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - log-volume:/var/log/services
@@ -272,6 +306,7 @@ services:
 volumes:
   postgres_auth_data:
   postgres_incidents_data:
+  timescaledb_ingestion_data:
   grafana_data:
   log-volume:
   loki-data:

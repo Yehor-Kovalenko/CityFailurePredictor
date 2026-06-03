@@ -1,6 +1,7 @@
 package com.citydisruptors.data_ingestion_service.service;
 
 import com.citydisruptors.data_ingestion_service.config.kafka.events.ElectricityReadingEvent;
+import com.citydisruptors.data_ingestion_service.entity.ElectricityReadingEntity;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.stereotype.Component;
 
@@ -8,6 +9,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 
 @Component
 public class LowCarbonLondonCsvMapper {
@@ -32,6 +34,18 @@ public class LowCarbonLondonCsvMapper {
                 tariffType,
                 timestamp,
                 kwh
+        );
+    }
+
+    public ElectricityReadingEntity toEntity(ElectricityReadingEvent event) {
+        return new ElectricityReadingEntity(
+                UUID.fromString(event.eventId()),
+                event.source(),
+                event.householdId(),
+                event.tariffType(),
+                event.readingTimestamp(),
+                event.kwh(),
+                event.ingestedAt()
         );
     }
 }

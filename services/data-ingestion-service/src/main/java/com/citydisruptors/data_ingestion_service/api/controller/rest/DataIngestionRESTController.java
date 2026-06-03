@@ -44,4 +44,12 @@ public class DataIngestionRESTController {
     public List<String> availableDatasets() {
         return service.availableDatasets();
     }
+
+    @PostMapping("/electricity/import/next")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ImportResponse importNextElectricityBatch(
+            @RequestParam(defaultValue = "1000") long limit
+    ) {
+        return service.importNextAvailableFile(limit);
+    }
 }
