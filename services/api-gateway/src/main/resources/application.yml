@@ -22,6 +22,10 @@ spring:
             - Path=/incident/**, /incidents/**, /incident-service/**
           filters:
             - StripPrefix=1
+        - id: data-ingestion-service
+          uri: lb://data-ingestion-service
+          predicates:
+            - Path=/data-ingestion/**
 
 eureka:
   instance:

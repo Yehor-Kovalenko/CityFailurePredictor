@@ -1,2 +1,20 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+
+# Ignore generated/static frontend assets in GitHub language stats
+**/dist/** linguist-generated=true
+**/build/** linguist-generated=true
+**/target/** linguist-generated=true
+**/node_modules/** linguist-vendored=true
+
+# If Swagger/static web assets are committed
+**/swagger-ui/** linguist-vendored=true
+**/static/** linguist-generated=true
+
+# Count these as project-relevant
+*.java linguist-detectable=true
+*.xml linguist-detectable=true
+*.yml linguist-detectable=true
+*.yaml linguist-detectable=true
+*.Dockerfile linguist-detectable=true
+Dockerfile linguist-detectable=true
