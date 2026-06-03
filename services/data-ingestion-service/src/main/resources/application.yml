@@ -1,0 +1,10 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: data-ingestion-service
+
+  config:
+    label: main
+    import: "optional:configserver:http://config-server:8888"

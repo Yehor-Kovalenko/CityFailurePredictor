@@ -16,6 +16,16 @@ spring:
             - Path=/auth/**,/oauth2/**,/login/**, /auth-service/**
           filters:
             - StripPrefix=1
+        - id: incident-service
+          uri: lb://incident-service
+          predicates:
+            - Path=/incident/**, /incidents/**, /incident-service/**
+          filters:
+            - StripPrefix=1
+        - id: data-ingestion-service
+          uri: lb://data-ingestion-service
+          predicates:
+            - Path=/data-ingestion/**
 
 eureka:
   instance:
