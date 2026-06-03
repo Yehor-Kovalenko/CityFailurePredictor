@@ -1,0 +1,10 @@
+{
+  "bootstrap_servers": "kafka:9092",
+  "group_id": "ai-prediction-service",
+  "topics": {
+    "electricity_raw": "electricity.readings.raw",
+    "predictions_generated": "predictions.generated"
+  },
+  "auto_offset_reset": "earliest",
+  "enable_auto_commit": false
+}
