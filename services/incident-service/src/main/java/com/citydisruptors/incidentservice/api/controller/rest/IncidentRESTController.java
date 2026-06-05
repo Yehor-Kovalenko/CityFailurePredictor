@@ -1,4 +1,4 @@
-package com.citydisruptors.incidentservice.api;
+package com.citydisruptors.incidentservice.api.controller.rest;
 
 import com.citydisruptors.incidentservice.api.dto.CreateIncidentRequest;
 import com.citydisruptors.incidentservice.api.dto.IncidentResponse;
@@ -17,12 +17,12 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/incident-service")
-public class IncidentController {
+public class IncidentRESTController {
 
     @Autowired
     private final IncidentService service;
 
-    public IncidentController(IncidentService service) {
+    public IncidentRESTController(IncidentService service) {
         this.service = service;
     }
 

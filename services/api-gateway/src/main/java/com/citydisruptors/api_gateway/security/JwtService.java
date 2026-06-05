@@ -1,4 +1,4 @@
-package com.citydisruptors.data_ingestion_service.config.security;
+package com.citydisruptors.api_gateway.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -7,26 +7,25 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
 
 @Service
 public class JwtService {
 
-    private final Key key;
+    private final byte[] secret;
 
     public JwtService(@Value("${jwt.secret}") String secret) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.secret = secret.getBytes(StandardCharsets.UTF_8);
     }
 
     public Claims extractClaims(String token) {
         return Jwts.parser()
-                .verifyWith((javax.crypto.SecretKey) key)
+                .verifyWith(Keys.hmacShaKeyFor(secret))
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
     }
 
-    public boolean isTokenValid(String token) {
+    public boolean isValid(String token) {
         try {
             extractClaims(token);
             return true;

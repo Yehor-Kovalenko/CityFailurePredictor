@@ -5,6 +5,10 @@ spring:
   application:
     name: api-gateway
 
+  config:
+    label: main
+    import: "optional:configserver:http://config-server:8888"
+
   cloud:
     gateway:
       default-filters:
@@ -13,15 +17,13 @@ spring:
         - id: auth-service
           uri: lb://auth-service
           predicates:
-            - Path=/auth/**,/oauth2/**,/login/**, /auth-service/**
-          filters:
-            - StripPrefix=1
+            - Path=/auth/**,/oauth2/**,/login/**,/login/oauth2/**
+
         - id: incident-service
           uri: lb://incident-service
           predicates:
             - Path=/incident/**, /incidents/**, /incident-service/**
-          filters:
-            - StripPrefix=1
+
         - id: data-ingestion-service
           uri: lb://data-ingestion-service
           predicates:
