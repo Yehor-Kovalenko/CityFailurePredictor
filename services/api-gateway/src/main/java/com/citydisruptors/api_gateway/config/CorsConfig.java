@@ -29,6 +29,14 @@ public class CorsConfig {
         cfg.addAllowedHeader(CorsConfiguration.ALL);
         cfg.setExposedHeaders(List.of("Authorization", "Location"));
         cfg.setMaxAge(Duration.ofHours(1));
+        cfg.setExposedHeaders(List.of(
+                "Authorization",
+                "Location",
+                "X-Correlation-ID",
+                "X-User-Id",
+                "X-User-Email",
+                "X-User-Role"
+        ));
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource(new PathPatternParser());

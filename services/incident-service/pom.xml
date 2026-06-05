@@ -14,12 +14,12 @@
     <artifactId>incident-service</artifactId>
     <dependencies>
         <!-- IMPORTANT START-->
-
         <!-- WEB -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
         <!-- EUREKA -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
