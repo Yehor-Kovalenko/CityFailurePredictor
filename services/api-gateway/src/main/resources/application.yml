@@ -25,7 +25,7 @@ spring:
         - id: data-ingestion-service
           uri: lb://data-ingestion-service
           predicates:
-            - Path=/data-ingestion/**
+            - Path=/data-ingestion/**, /data-ingestion-service/**
 
 eureka:
   instance:
