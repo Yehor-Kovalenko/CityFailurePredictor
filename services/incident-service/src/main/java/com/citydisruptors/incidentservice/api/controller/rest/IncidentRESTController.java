@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/incident-service")
+@RequestMapping("/incidents")
 public class IncidentRESTController {
 
     @Autowired
