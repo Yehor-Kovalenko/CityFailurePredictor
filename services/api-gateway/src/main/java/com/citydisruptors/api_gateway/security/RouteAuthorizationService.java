@@ -23,7 +23,7 @@ public class RouteAuthorizationService {
     );
 
     public boolean isPublicPath(String path) {
-        return PUBLIC_PATHS.stream().anyMatch(path::startsWith);
+        return PUBLIC_PATHS.stream().anyMatch(path::contains);
     }
 
     public boolean hasAccess(String path, HttpMethod method, String role) {
@@ -72,29 +72,12 @@ public class RouteAuthorizationService {
         /*
          * Incident Service
          */
-        if (path.startsWith("/incident-service/statuses")) {
-            return method == HttpMethod.GET;
+        if (path.startsWith("/incident-service/") || path.startsWith("/incidents/")) {
+            return true;
         }
+        // TODO add guard so that only user that created incident can check its status and update it
 
-        if (path.startsWith("/incident-service/all")) {
-            return method == HttpMethod.GET;
-        }
 
-        if (path.matches("^/incident-service/[0-9a-fA-F\\-]{36}$")) {
-            return method == HttpMethod.GET;
-        }
-
-        if (path.equals("/incident-service") || path.equals("/incident-service/")) {
-            return method == HttpMethod.POST;
-        }
-
-        if (path.matches("^/incident-service/[0-9a-fA-F\\-]{36}/status$")) {
-            return false;
-        }
-
-        if (path.matches("^/incident-service/[0-9a-fA-F\\-]{36}$")) {
-            return method == HttpMethod.GET;
-        }
         return false;
     }
 

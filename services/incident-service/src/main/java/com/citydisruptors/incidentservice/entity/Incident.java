@@ -29,19 +29,19 @@ public class Incident {
     private IncidentStatus incidentStatus = IncidentStatus.OPEN;
 
     @Column(nullable = false, updatable = false)
-    private Instant timestamp;
+    private Instant createdTimestamp;
 
-    private Instant lastUpdated;
+    private Instant lastUpdatedTimestamp;
 
     @PrePersist
     protected void onCreate() {
-        this.timestamp = Instant.now();
-        this.lastUpdated = this.timestamp;
+        this.createdTimestamp = Instant.now();
+        this.lastUpdatedTimestamp = this.createdTimestamp;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        this.lastUpdated = Instant.now();
+        this.lastUpdatedTimestamp = Instant.now();
     }
 
     public Incident() {
@@ -102,12 +102,12 @@ public class Incident {
         this.incidentStatus = incidentStatus;
     }
 
-    public Instant getTimestamp() {
-        return timestamp;
+    public Instant getCreatedTimestamp() {
+        return createdTimestamp;
     }
 
-    public Instant getLastUpdated() {
-        return lastUpdated;
+    public Instant getLastUpdatedTimestamp() {
+        return lastUpdatedTimestamp;
     }
 
 

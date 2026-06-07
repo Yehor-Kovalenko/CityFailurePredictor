@@ -1,4 +1,4 @@
-package com.citydisruptors.incidentservice.api;
+package com.citydisruptors.incidentservice.config.logging;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

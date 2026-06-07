@@ -25,9 +25,9 @@ class IncidentTest {
 
         incident.onCreate();
 
-        assertThat(incident.getTimestamp()).isNotNull();
-        assertThat(incident.getLastUpdated()).isNotNull();
-        assertThat(incident.getTimestamp()).isEqualTo(incident.getLastUpdated());
+        assertThat(incident.getCreatedTimestamp()).isNotNull();
+        assertThat(incident.getLastUpdatedTimestamp()).isNotNull();
+        assertThat(incident.getCreatedTimestamp()).isEqualTo(incident.getLastUpdatedTimestamp());
     }
 
     @Test
@@ -36,12 +36,12 @@ class IncidentTest {
         Incident incident = new Incident("Test test title", "A test summary", coords, IncidentType.FIRE);
         incident.onCreate();
 
-        Instant createdAt = incident.getTimestamp();
+        Instant createdAt = incident.getCreatedTimestamp();
         Thread.sleep(10);
         incident.onUpdate();
 
-        assertThat(incident.getLastUpdated()).isAfter(createdAt);
-        assertThat(incident.getTimestamp()).isEqualTo(createdAt);
+        assertThat(incident.getLastUpdatedTimestamp()).isAfter(createdAt);
+        assertThat(incident.getCreatedTimestamp()).isEqualTo(createdAt);
     }
 
     @Test

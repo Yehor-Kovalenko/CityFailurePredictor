@@ -68,6 +68,11 @@
 
         <!-- IMPORTANT END-->
 
+        <!-- KAFKA -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
         <!-- JPA -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

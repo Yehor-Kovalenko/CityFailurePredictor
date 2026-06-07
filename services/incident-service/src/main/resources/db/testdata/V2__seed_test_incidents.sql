@@ -1,4 +1,4 @@
-INSERT INTO incidents (id, incident_title, incident_summary, crs, x, y, incident_type, incident_status, timestamp, last_updated)
+INSERT INTO incidents (id, incident_title, incident_summary, crs, x, y, incident_type, incident_status, created_timestamp, last_updated_timestamp)
 VALUES
     ('00000000-0000-0000-0000-000000000001',
      'Bridge Fire',

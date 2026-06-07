@@ -17,17 +17,23 @@ spring:
         - id: auth-service
           uri: lb://auth-service
           predicates:
-            - Path=/auth/**,/oauth2/**,/login/**,/login/oauth2/**
+            - Path=/auth-service/**,/auth/**,/oauth2/**,/login/**,/login/oauth2/**
+          filters:
+            - StripPrefix=1
 
         - id: incident-service
           uri: lb://incident-service
           predicates:
             - Path=/incident/**, /incidents/**, /incident-service/**
+          filters:
+            - StripPrefix=1
 
         - id: data-ingestion-service
           uri: lb://data-ingestion-service
           predicates:
             - Path=/data-ingestion/**, /data-ingestion-service/**
+          filters:
+            - StripPrefix=1
 
 eureka:
   instance:
@@ -59,3 +65,4 @@ springdoc:
   swagger-ui:
     urls-primary-name: api-gateway
     config-url: /swagger-config
+    persist-authorization: true
