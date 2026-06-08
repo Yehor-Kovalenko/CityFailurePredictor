@@ -9,17 +9,28 @@ import java.util.List;
 public class RouteAuthorizationService {
 
     private static final List<String> PUBLIC_PATHS = List.of(
+            // Auth public
             "/auth/test",
             "/auth/success",
             "/oauth2",
             "/login",
-            "/actuator",
+
+            // Central Swagger
             "/swagger-ui",
             "/swagger-ui.html",
             "/v3/api-docs",
             "/v3/api-docs-proxy",
             "/swagger-config",
-            "/webjars"
+            "/webjars",
+
+            // Service Swagger through prefixed routes
+            "/auth-service/v3/api-docs",
+            "/incident-service/v3/api-docs",
+            "/data-ingestion-service/v3/api-docs",
+            "/decision-service/v3/api-docs",
+
+            // Actuator gateway
+            "/actuator"
     );
 
     public boolean isPublicPath(String path) {
