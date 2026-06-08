@@ -46,9 +46,11 @@ services:
       dockerfile: services/api-gateway/Dockerfile
     ports:
       - "9191:9191"
+      - "5005:5005"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/api-gateway.log
+      JAVA_TOOL_OPTIONS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
     depends_on:
       service-registry:
         condition: service_healthy
@@ -195,14 +197,12 @@ services:
     restart: always
 
   incident-service:
-  #  container_name: incident-service
+    container_name: incident-service
     build:
       context: .
       dockerfile: services/incident-service/Dockerfile
-  #  ports:
-  #    - "8082:8082"
-    expose:
-      - "8082"
+    ports:
+      - "8082:8082"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/incident-service.log

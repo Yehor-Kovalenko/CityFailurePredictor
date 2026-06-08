@@ -22,6 +22,41 @@ spring:
     label: main
     import: "optional:configserver:http://config-server:8888"
 
+  kafka:
+    bootstrap-servers: kafka:9092
+    topics:
+      incidents-created: incidents.created
+      incidents-updated: incidents.updated
+    partitions:
+      incidents-created: 2
+      incidents-updated: 2
+    replicas:
+      incidents-created: 1
+      incidents-updated: 1
+    producer:
+      acks: all
+      retries: 5
+      properties:
+        enable.idempotence: true
+        delivery.timeout.ms: 30000
+        request.timeout.ms: 10000
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+
+app:
+  kafka:
+    topics:
+      incidents-created: incidents.created
+      incidents-updated: incidents.updated
+    partitions:
+      incidents-created: 2
+      incidents-updated: 2
+    replicas:
+      incidents-created: 1
+      incidents-updated: 1
+    producer-timeout-ms: 5000
+
 eureka:
   instance:
     instance-id: ${spring.application.name}:${server.port}

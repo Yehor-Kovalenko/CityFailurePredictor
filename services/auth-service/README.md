@@ -23,7 +23,7 @@ GET /oauth2/authorization/google
 **Example:**
 
 ```
-http://localhost:9191/oauth2/authorization/google
+http://localhost:9191/auth-service/oauth2/authorization/google
 ```
 
 **Response:**
