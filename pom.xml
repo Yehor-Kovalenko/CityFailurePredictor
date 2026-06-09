@@ -21,6 +21,7 @@
         <module>services/auth-service</module>
         <module>services/incident-service</module>
         <module>services/data-ingestion-service</module>
+        <module>services/decision-service</module>
     </modules>
 
     <properties>

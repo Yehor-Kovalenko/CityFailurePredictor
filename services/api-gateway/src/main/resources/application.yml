@@ -50,6 +50,18 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: decision-service-direct
+          uri: lb://decision-service
+          predicates:
+            - Path=/decision/**
+
+        - id: decision-service-prefixed
+          uri: lb://decision-service
+          predicates:
+            - Path=/decision-service/**
+          filters:
+            - StripPrefix=1
+
 eureka:
   instance:
     instance-id: ${spring.application.name}:${server.port}
