@@ -26,6 +26,7 @@ public class DecisionService {
     private final Counter predictionsProcessed;
     private final Counter alertsCreated;
     private final Counter duplicatesSkipped;
+    private final MeterRegistry registry;
 
     public DecisionService(
             DecisionRepository repository,
@@ -38,6 +39,7 @@ public class DecisionService {
         this.predictionsProcessed = registry.counter("decision.predictions.processed");
         this.alertsCreated = registry.counter("decision.alerts.created");
         this.duplicatesSkipped = registry.counter("decision.predictions.duplicates.skipped");
+        this.registry = registry;
     }
 
     @Transactional
@@ -66,6 +68,11 @@ public class DecisionService {
 
         double riskScore = calculateRiskScore(reading);
         RiskLevel riskLevel = calculateRiskLevel(riskScore, reading.predictedKwh(), reading.upperBoundKwh());
+
+        registry.counter(
+                "decision.risk.level.total",
+                "level", riskLevel.name()
+        ).increment();
 
         boolean shouldCreateAlert = riskLevel == RiskLevel.HIGH || riskLevel == RiskLevel.CRITICAL;
 

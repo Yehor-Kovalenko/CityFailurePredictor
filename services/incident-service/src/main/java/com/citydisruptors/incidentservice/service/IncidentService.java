@@ -45,7 +45,7 @@ public class IncidentService {
         this.updated = registry.counter("incidents.updated.success");
         this.incidentsResolved = registry.counter("incidents.resolved");
         this.creationFailed = registry.counter("incidents.created.failure");
-        this.updateFailed = registry.counter("incidents.udpated.failure");
+        this.updateFailed = registry.counter("incidents.updated.failure");
 
         this.incidentCreatedProducer = incidentCreatedProducer;
         this.incidentUpdatedProducer = incidentUpdatedProducer;

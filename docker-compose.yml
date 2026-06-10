@@ -352,6 +352,48 @@ services:
       - prometheus
       - loki
 
+  postgres-exporter-auth:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter-auth
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres-auth:5432/auth_db?sslmode=disable"
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres-exporter-incidents:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter-incidents
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres-incidents:5432/incidents_db?sslmode=disable"
+    depends_on:
+      postgres-incidents:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres-exporter-decision:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter-decision
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres-decision:5432/decision_db?sslmode=disable"
+    depends_on:
+      postgres-decision:
+        condition: service_healthy
+    restart: unless-stopped
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:latest
+    container_name: kafka-exporter
+    command:
+      - "--kafka.server=kafka:9092"
+    ports:
+      - "9308:9308"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
 
 volumes:
   postgres_auth_data:
