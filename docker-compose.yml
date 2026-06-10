@@ -187,6 +187,7 @@ services:
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/auth-service.log
+      AUTH_ADMIN_EMAILS: lupelikan@gmail.com
     depends_on:
       postgres-auth:
         condition: service_healthy
@@ -264,9 +265,10 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
     restart: unless-stopped
 
-  # --- Logging ---
+    # --- Logging ---
   alloy:
     image: grafana/alloy:latest
+    container_name: alloy
     volumes:
       - ./logging/config.alloy:/etc/alloy/config.alloy:ro
       - log-volume:/var/log/services:ro
@@ -276,6 +278,7 @@ services:
 
   loki:
     image: grafana/loki:latest
+    container_name: loki
     ports:
       - "3100:3100"
     volumes:
