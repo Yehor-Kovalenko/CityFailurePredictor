@@ -1,136 +1,170 @@
-import numpy as np
-import pandas as pd
 import json
+import numpy as np
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Optional
+
 
 from AI.Domain.Models.ngboost_model import NGBoostModel
 from AI.Domain.Models.xgboost_model import XGBoostModel
-from AI.Domain.Datasets.london_house_loader import LondonSingleHouseLoader
+from AI.Orchestration.request_manager import Request
 
 
-def get_window(df, target_time, lookback_hours):
-    target_time = pd.to_datetime(target_time)
-
-    df = df.copy()
-    df["DateTime"] = pd.to_datetime(df["DateTime"])
-
-    df = df[df["DateTime"] <= target_time]
-    df = df.sort_values("DateTime")
-
-    cutoff = target_time - pd.Timedelta(hours=lookback_hours)
-    return df[df["DateTime"] >= cutoff]
+# =========================================================
+# REQUEST OBJECT
+# =========================================================
 
 
-def build_input(values, window_size):
-    return values[-window_size:].reshape(1, -1)
+# =========================================================
+# INFERENCE SERVICE
+# =========================================================
+class InferenceEnergyService:
 
+    def __init__(self, config_path: str):
 
-def forecast(model, values, window_size, horizon):
-    window = values[-window_size:].copy()
-    preds = []
+        with open(config_path, "r") as f:
+            self.config = json.load(f)
 
-    for _ in range(horizon):
-        pred = model.predict(window.reshape(1, -1))[0]
-        preds.append(pred)
-        window = np.roll(window, -1)
-        window[-1] = pred
+        self.model_type = self.config["model"]["type"].lower()
+        self.model_path = self.config["model"]["path"]
 
-    return np.array(preds)
+        self.window_size = self.config["features"]["window_size"]
+        self.lookback_hours = self.config["features"]["lookback_hours"]
+        self.horizon = self.config["features"]["horizon"]
 
-
-def ngboost_stats(model, X):
-
-    dist = model.predict_distribution(X)
-
-    mean = dist.mean
-    std = dist.scale
-
-    lower = dist.ppf(0.025)
-    upper = dist.ppf(0.975)
-
-    return mean, std, lower, upper
-
-
-def main():
+        self.model = self._load_model()
 
     # ----------------------------
-    # CONFIG
-    # ----------------------------
-    with open("../../Domain/Resources/LondonHouse/inference_config.json", "r") as f:
-        config = json.load(f)
+    def _load_model(self):
 
-    model_type = config["model"]["type"].lower()
-    model_path = config["model"]["path"]
+        if self.model_type == "ngboost":
+            model = NGBoostModel()
 
-    house_id = config["dataset"]["house_id"]
+        elif self.model_type == "xgboost":
+            model = XGBoostModel()
 
-    window_size = config["features"]["window_size"]
-    lookback_hours = config["features"]["lookback_hours"]
-    horizon = config["features"]["horizon"]
+        else:
+            raise ValueError(f"Unsupported model type: {self.model_type}")
 
-    # ----------------------------
-    # MODEL
-    # ----------------------------
-    if model_type == "ngboost":
-        model = NGBoostModel()
-    elif model_type == "xgboost":
-        model = XGBoostModel()
-    else:
-        raise ValueError(f"Unknown model type: {model_type}")
-
-    model.load(model_path)
+        model.load(self.model_path)
+        return model
 
     # ----------------------------
-    # DATA (mock now)
-    # ----------------------------
-    loader = LondonSingleHouseLoader(
-        folder_path=""
-    )
+    def _build_input(self, values, window_size):
+        values = np.asarray(values)
 
-    df = loader.load_houses(house_id)
+        if len(values) < window_size:
+            raise ValueError(
+                f"Not enough history: {len(values)} < {window_size}"
+            )
 
-    target_time = df["DateTime"].max()
-
-    df = get_window(df, target_time, lookback_hours)
-
-    values = df["KWH/hh (per half hour)"].values
+        return values[-window_size:].reshape(1, -1)
 
     # ----------------------------
-    # PREDICTION
+    def _forecast(self, values, window_size, horizon):
+
+        window = np.asarray(values[-window_size:]).copy()
+        preds = []
+
+        for _ in range(horizon):
+
+            X = window.reshape(1, -1)
+            pred = self.model.predict(X)[0]
+
+            preds.append(pred)
+
+            window = np.roll(window, -1)
+            window[-1] = pred
+
+        return np.array(preds)
+
     # ----------------------------
-    X = build_input(values, window_size)
+    def handle_request(self, request: Request):
 
-    next_pred = model.predict(X)[0]
+        if request.task != "electricity_forecast":
+            raise ValueError(f"Unsupported task: {request.task}")
 
-    if model_type == "ngboost":
-        mean, std, lower, upper = ngboost_stats(model, X)
-
-    horizon_pred = forecast(
-        model=model,
-        values=values,
-        window_size=window_size,
-        horizon=horizon
-    )
-
-    # ----------------------------
-    # OUTPUT
-    # ----------------------------
-    print("\n======================")
-    print(f"House: {house_id}")
-    print(f"Model: {model_type}")
-    print(f"Next prediction: {next_pred:.4f}")
-
-    if model_type == "ngboost":
-        print()
-        print("NGBoost uncertainty:")
-        print(f"Mean: {mean[0]:.4f}")
-        print(f"Std: {std[0]:.4f}")
-        print(
-            f"95% interval: "
-            f"[{lower[0]:.4f}, {upper[0]:.4f}]"
+        # ----------------------------
+        # PARAM OVERRIDES
+        # ----------------------------
+        window_size = (
+            request.params.get("window_size")
+            if request.params else self.window_size
         )
 
-    print("======================\n")
+        horizon = (
+            request.params.get("horizon")
+            if request.params else self.horizon
+        )
+
+        # ----------------------------
+        # DATA
+        # ----------------------------
+        values = np.asarray(request.data)
+
+        # ----------------------------
+        # NEXT STEP PREDICTION
+        # ----------------------------
+        X = self._build_input(values, window_size)
+        next_pred = self.model.predict(X)[0]
+
+        # ----------------------------
+        # HORIZON FORECAST
+        # ----------------------------
+        horizon_pred = self._forecast(values, window_size, horizon)
+
+        # ----------------------------
+        # NGBOOST OPTIONAL OUTPUT
+        # ----------------------------
+        uncertainty = None
+
+        if self.model_type == "ngboost":
+            dist = self.model.model.pred_dist(X)
+            mean = np.asarray(dist.loc)[0]
+            std = np.asarray(dist.scale)[0]
+
+            alpha = 0.05
+            lower = dist.ppf(alpha / 2)
+            upper = dist.ppf(1 - alpha / 2)
+
+            uncertainty = {
+                "mean": float(mean),
+                "std": float(std),
+                "lower_95": float(lower[0]),
+                "upper_95": float(upper[0]),
+            }
+
+        # ----------------------------
+        # RESPONSE
+        # ----------------------------
+        return {
+            "task": request.task,
+            "timestamp": request.timestamp.isoformat(),
+            "model_type": self.model_type,
+            "next_prediction": float(next_pred),
+            "horizon": horizon,
+            "forecast": horizon_pred.tolist(),
+            "uncertainty": uncertainty
+        }
 
 
 if __name__ == "__main__":
-    main()
+
+    service = InferenceEnergyService(
+        "../../Domain/Resources/LondonHouse/inference_config.json"
+    )
+
+    last_24h_values = np.random.rand(24)
+
+    request = Request(
+        task="electricity_forecast",
+        timestamp=datetime.utcnow(),
+        data=last_24h_values,
+        params={
+            "window_size": 24,
+            "horizon": 48
+        }
+    )
+
+    result = service.handle_request(request)
+    print(result)
