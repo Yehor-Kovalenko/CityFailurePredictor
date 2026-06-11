@@ -1,0 +1,16 @@
+{
+  "model": {
+    "type": "xgboost",
+    "path": "../../Domain/Resources/LondonHouse/xgboost/2026-06-11_21-12-19/model.joblib"
+  },
+
+  "dataset": {
+    "house_id": "MAC000003"
+  },
+
+  "features": {
+    "window_size": 24,
+    "lookback_hours": 72,
+    "horizon": 48
+  }
+}
