@@ -1,0 +1,10 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: decision-service
+
+  config:
+    label: main
+    import: "optional:configserver:http://config-server:8888"

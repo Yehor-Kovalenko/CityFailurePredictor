@@ -7,29 +7,72 @@ scrape_configs:
   - job_name: 'auth-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['auth-service:8083']
+      - targets: [ 'auth-service:8083' ]
+        labels:
+          application: 'auth-service'
 
   - job_name: 'incident-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: [ 'incident-service:8082' ]
+        labels:
+          application: 'incident-service'
 
   - job_name: 'api-gateway'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['api-gateway:9191']
+      - targets: [ 'api-gateway:9191' ]
+        labels:
+          application: 'api-gateway'
 
   - job_name: 'config-server'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['config-server:8888']
+      - targets: [ 'config-server:8888' ]
+        labels:
+          application: 'config-server'
 
   - job_name: 'service-registry'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['service-registry:8761']
+      - targets: [ 'service-registry:8761' ]
+        labels:
+          application: 'service-registry'
 
   - job_name: 'data-ingestion-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['data-ingestion-service:8084']
+      - targets: [ 'data-ingestion-service:8084' ]
+        labels:
+          application: 'data-ingestion-service'
+
+  - job_name: 'decision-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: [ 'decision-service:8085' ]
+        labels:
+          application: 'decision-service'
+
+  - job_name: 'kafka'
+    static_configs:
+      - targets: [ 'kafka-exporter:9308' ]
+        labels:
+          application: 'kafka'
+
+  - job_name: 'postgres-auth'
+    static_configs:
+      - targets: [ 'postgres-exporter-auth:9187' ]
+        labels:
+          application: 'postgres-auth'
+
+  - job_name: 'postgres-incidents'
+    static_configs:
+      - targets: [ 'postgres-exporter-incidents:9187' ]
+        labels:
+          application: 'postgres-incidents'
+
+  - job_name: 'postgres-decision'
+    static_configs:
+      - targets: [ 'postgres-exporter-decision:9187' ]
+        labels:
+          application: 'postgres-decision'

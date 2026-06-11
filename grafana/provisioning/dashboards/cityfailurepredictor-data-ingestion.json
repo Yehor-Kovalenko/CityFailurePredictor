@@ -1,0 +1,145 @@
+{
+  "uid": "cityfailurepredictor-data-ingestion",
+  "title": "CityFailurePredictor - Data Ingestion",
+  "tags": [
+    "cityfailurepredictor",
+    "data-ingestion"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Rows Received",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "ingestion_electricity_rows_received_total",
+          "legendFormat": "received"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Rows Skipped",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "ingestion_electricity_rows_skipped_total",
+          "legendFormat": "skipped"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Kafka Events Published",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "ingestion_electricity_events_published_total",
+          "legendFormat": "published"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Kafka Publish Failures",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "ingestion_electricity_events_failed_total",
+          "legendFormat": "failed"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Published Events Rate",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(ingestion_electricity_events_published_total[1m])",
+          "legendFormat": "events/sec"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Average Import Duration",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "ingestion_electricity_import_duration_seconds_sum / ingestion_electricity_import_duration_seconds_count",
+          "legendFormat": "avg duration"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
+    }
+  ]
+}
