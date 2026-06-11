@@ -2,6 +2,7 @@ package com.citydisruptors.api_gateway.security;
 
 import io.jsonwebtoken.Claims;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,10 @@ public class JwtAuthenticationFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        if (exchange.getRequest().getMethod() == HttpMethod.OPTIONS) {
+            return chain.filter(exchange);
+        }
+
         String path = exchange.getRequest().getPath().value();
 
         if (authorizationService.isPublicPath(path)) {
