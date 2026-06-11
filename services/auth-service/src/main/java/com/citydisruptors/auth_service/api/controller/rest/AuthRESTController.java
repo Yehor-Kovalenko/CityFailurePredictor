@@ -41,6 +41,9 @@ public class AuthRESTController {
 
     @GetMapping("/success")
     public ResponseEntity<AuthResponse> success(@AuthenticationPrincipal OAuth2User principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).build();
+        }
 
         var result = oAuthService.processGoogleUser(principal);
         return ResponseEntity.ok(toResponse(result));
