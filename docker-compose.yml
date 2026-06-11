@@ -252,6 +252,23 @@ services:
     restart: always
 
 
+  # --- Frontend ---
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:9191
+    ports:
+      - "3000:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    restart: unless-stopped
+
+
   # --- Monitoring  ---
 
   prometheus:
