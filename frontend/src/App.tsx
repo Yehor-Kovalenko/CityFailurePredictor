@@ -178,9 +178,6 @@ function App() {
       <Sidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        onLogout={() => {
-          void handleLogout();
-        }}
         canAccessSettings={canAccessSettings}
       />
 

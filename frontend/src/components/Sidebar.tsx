@@ -1,16 +1,14 @@
-import { Home, AlertCircle, BarChart3, Settings, LogOut } from "lucide-react";
+import { Home, AlertCircle, BarChart3, Settings } from "lucide-react";
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
-  onLogout: () => void;
   canAccessSettings: boolean;
 }
 
 export function Sidebar({
   activeTab,
   onTabChange,
-  onLogout,
   canAccessSettings,
 }: SidebarProps) {
   const menuItems = [
@@ -59,15 +57,6 @@ export function Sidebar({
           );
         })}
       </nav>
-
-      {/* Logout */}
-      <button
-        onClick={onLogout}
-        className="w-12 h-12 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-700 flex items-center justify-center transition-all"
-        title="Logout"
-      >
-        <LogOut size={24} />
-      </button>
     </div>
   );
 }
