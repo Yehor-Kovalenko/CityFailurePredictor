@@ -1,0 +1,10 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: reporting-service
+
+  config:
+    label: main
+    import: "optional:configserver:http://config-server:8888"
