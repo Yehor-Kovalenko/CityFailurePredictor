@@ -38,3 +38,11 @@ build/
 *.zip
 *.csv
 !datasets/sample/*.csv
+
+# Contract Tests Generated
+/tests/contract_tests/package-lock.json
+/tests/contract_tests/newman/contract-results.json
+
+# Security Tests Generated
+/tests/security_tests/newman/security-results.json
+/tests/security_tests/package-lock.json

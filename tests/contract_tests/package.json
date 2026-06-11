@@ -1,0 +1,11 @@
+{
+  "name": "cityfailurepredictor-api-contract-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "newman run newman/CityFailurePredictor.contract.postman_collection.json -e newman/CityFailurePredictor.local.postman_environment.json --reporters cli,json --reporter-json-export newman/contract-results.json"
+  },
+  "devDependencies": {
+    "newman": "^6.2.1"
+  }
+}

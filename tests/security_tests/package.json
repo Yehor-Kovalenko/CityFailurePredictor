@@ -1,0 +1,11 @@
+{
+  "name": "cityfailurepredictor-security-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "newman run newman/CityFailurePredictor.security.postman_collection.json -e newman/CityFailurePredictor.local.postman_environment.json --reporters cli,json --reporter-json-export newman/security-results.json"
+  },
+  "devDependencies": {
+    "newman": "^6.2.1"
+  }
+}
