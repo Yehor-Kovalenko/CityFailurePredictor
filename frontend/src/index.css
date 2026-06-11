@@ -1,0 +1,75 @@
+@import "leaflet/dist/leaflet.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  @apply transition-colors;
+}
+
+body {
+  @apply bg-dark-950 text-dark-100;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  @apply w-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-dark-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-dark-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-dark-600;
+}
+
+/* Leaflet map customization */
+.leaflet-container {
+  background-color: #0a0e27;
+  border-radius: 0.75rem;
+}
+
+.leaflet-popup-content-wrapper {
+  background-color: white !important;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.leaflet-popup-tip {
+  background-color: white !important;
+}
+
+.incident-popup .leaflet-popup-content {
+  margin: 0;
+  padding: 0;
+}
+
+.leaflet-control-attribution {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  color: #ccc !important;
+}
+
+.leaflet-control-attribution a {
+  color: #0284c7 !important;
+}
+
+.leaflet-control {
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
+}
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  color: #333 !important;
+}
+
+.leaflet-control-zoom-in:hover,
+.leaflet-control-zoom-out:hover {
+  background-color: rgba(255, 255, 255, 1) !important;
+}
