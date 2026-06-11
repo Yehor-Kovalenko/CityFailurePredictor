@@ -40,3 +40,24 @@ export interface ErrorResponse {
   message: string;
   timestamp: string;
 }
+
+export type UserRole = "ROLE_USER" | "ROLE_ADMIN";
+
+export interface AuthUser {
+  email: string;
+  role: UserRole;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  user: AuthUser;
+}
+
+export interface AuthSession {
+  accessToken: string;
+  tokenType: string;
+  expiresAt: number;
+  user: AuthUser;
+}

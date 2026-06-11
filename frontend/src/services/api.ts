@@ -6,8 +6,9 @@ import {
   IncidentStatus,
   IncidentType,
 } from "../types";
+import { clearStoredSession, getStoredSession } from "./authStorage";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:9191";
 
 class IncidentService {
   private api: AxiosInstance;
@@ -15,10 +16,29 @@ class IncidentService {
   constructor() {
     this.api = axios.create({
       baseURL: API_BASE_URL,
+      withCredentials: true,
       headers: {
         "Content-Type": "application/json",
       },
     });
+
+    this.api.interceptors.request.use((config) => {
+      const session = getStoredSession();
+      if (session?.accessToken) {
+        config.headers.Authorization = `Bearer ${session.accessToken}`;
+      }
+      return config;
+    });
+
+    this.api.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error?.response?.status === 401) {
+          clearStoredSession();
+        }
+        return Promise.reject(error);
+      },
+    );
   }
 
   async createIncident(request: CreateIncidentRequest): Promise<Incident> {

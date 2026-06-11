@@ -3,14 +3,26 @@ import { Home, AlertCircle, BarChart3, Settings, LogOut } from "lucide-react";
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  onLogout: () => void;
+  canAccessSettings: boolean;
 }
 
-export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+export function Sidebar({
+  activeTab,
+  onTabChange,
+  onLogout,
+  canAccessSettings,
+}: SidebarProps) {
   const menuItems = [
     { id: "dashboard", icon: Home, label: "Dashboard" },
     { id: "incidents", icon: AlertCircle, label: "Incidents" },
     { id: "analytics", icon: BarChart3, label: "Analytics" },
-    { id: "settings", icon: Settings, label: "Settings" },
+    {
+      id: "settings",
+      icon: Settings,
+      label: "Settings",
+      disabled: !canAccessSettings,
+    },
   ];
 
   return (
@@ -27,13 +39,20 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           return (
             <button
               key={item.id}
-              onClick={() => onTabChange(item.id)}
+              onClick={() => {
+                if (!item.disabled) {
+                  onTabChange(item.id);
+                }
+              }}
+              disabled={item.disabled}
               className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all ${
                 activeTab === item.id
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-600/50"
-                  : "text-dark-400 hover:text-white hover:bg-dark-700"
+                  : item.disabled
+                    ? "text-dark-600 cursor-not-allowed"
+                    : "text-dark-400 hover:text-white hover:bg-dark-700"
               }`}
-              title={item.label}
+              title={item.disabled ? `${item.label} (admin only)` : item.label}
             >
               <Icon size={24} />
             </button>
@@ -42,7 +61,11 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       </nav>
 
       {/* Logout */}
-      <button className="w-12 h-12 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-700 flex items-center justify-center transition-all">
+      <button
+        onClick={onLogout}
+        className="w-12 h-12 rounded-lg text-dark-400 hover:text-red-400 hover:bg-dark-700 flex items-center justify-center transition-all"
+        title="Logout"
+      >
         <LogOut size={24} />
       </button>
     </div>

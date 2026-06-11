@@ -5,8 +5,10 @@ import { HeartbeatFeed } from "./components/HeartbeatFeed";
 import { MapView } from "./components/MapView";
 import { SystemHealth } from "./components/SystemHealth";
 import { CreateIncidentModal } from "./components/CreateIncidentModal";
+import { LoginScreen } from "./components/LoginScreen";
 import { Incident } from "./types";
 import incidentService from "./services/api";
+import { useAuth } from "./auth/AuthContext";
 
 const MOCK_INCIDENTS: Incident[] = [
   {
@@ -75,30 +77,88 @@ const MOCK_INCIDENTS: Incident[] = [
 ];
 
 function App() {
+  const {
+    session,
+    isAuthenticated,
+    isLoading,
+    loginWithGoogle,
+    logout,
+    hasRole,
+  } = useAuth();
   const [incidents, setIncidents] = useState<Incident[]>(MOCK_INCIDENTS);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
     null,
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const canAccessSettings = hasRole("ROLE_ADMIN");
+
+  useEffect(() => {
+    if (activeTab === "settings" && !canAccessSettings) {
+      setActiveTab("dashboard");
+    }
+  }, [activeTab, canAccessSettings]);
+
+  const handleLogin = async () => {
+    setAuthError(null);
+    setAuthLoading(true);
+    try {
+      await loginWithGoogle();
+    } catch (error) {
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : "Authentication failed. Please try again.",
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setIncidents(MOCK_INCIDENTS);
+    setSelectedIncident(null);
+    setActiveTab("dashboard");
+  };
 
   const loadIncidents = async () => {
-    setLoading(true);
     try {
       const data = await incidentService.getAllIncidents();
       setIncidents(data);
     } catch (error) {
       console.error("Failed to load incidents:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     loadIncidents();
-  }, []);
+  }, [isAuthenticated]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-dark-950 text-white flex items-center justify-center">
+        Loading authentication...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !session) {
+    return (
+      <LoginScreen
+        onLogin={handleLogin}
+        loading={authLoading}
+        error={authError}
+      />
+    );
+  }
 
   const filteredIncidents = incidents.filter(
     (incident) =>
@@ -115,7 +175,14 @@ function App() {
   return (
     <div className="flex h-screen bg-dark-950 overflow-hidden">
       {/* Sidebar */}
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onLogout={() => {
+          void handleLogout();
+        }}
+        canAccessSettings={canAccessSettings}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -124,6 +191,11 @@ function App() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onCreateClick={() => setIsModalOpen(true)}
+          onLogout={() => {
+            void handleLogout();
+          }}
+          userEmail={session.user.email}
+          userRole={session.user.role}
         />
 
         {/* Main Layout */}
@@ -208,9 +280,15 @@ function App() {
             {activeTab === "settings" && (
               <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl p-6">
                 <h2 className="text-2xl font-bold text-white">Settings</h2>
-                <p className="text-dark-400 mt-4">
-                  Settings page coming soon...
-                </p>
+                {canAccessSettings ? (
+                  <p className="text-dark-400 mt-4">
+                    Settings page coming soon...
+                  </p>
+                ) : (
+                  <p className="text-red-300 mt-4">
+                    You are not authorized to access settings.
+                  </p>
+                )}
               </div>
             )}
           </div>
