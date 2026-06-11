@@ -83,7 +83,7 @@ public class RouteAuthorizationService {
         /*
          * Incident Service
          */
-        if (path.startsWith("/incident-service/") || path.startsWith("/incidents/")) {
+        if (path.equals("/incidents") || path.startsWith("/incidents/") || path.startsWith("/incident-service/")) {
             return true;
         }
         // TODO add guard so that only user that created incident can check its status and update it

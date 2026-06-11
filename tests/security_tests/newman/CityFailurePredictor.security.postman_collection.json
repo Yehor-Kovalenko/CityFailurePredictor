@@ -1,0 +1,264 @@
+{
+  "info": {
+    "name": "CityFailurePredictor - Security Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Protected endpoint - incidents without token should return 401",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/incidents/all",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('returns 401 without token', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Protected endpoint - incidents with invalid token should return 401",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/incidents/all",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{invalidToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('returns 401 for invalid token', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Protected endpoint - user can access incidents",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/incidents/all",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{userToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('user can access incidents', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin endpoint - user cannot access users list",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/auth/users",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{userToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('user gets forbidden or unauthorized', () => {",
+              "  pm.expect([401, 403]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin endpoint - admin can access users list",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/auth/users",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('admin can access users list', () => pm.response.to.have.status(200));",
+              "pm.test('response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "CORS preflight - incidents POST should allow frontend origin",
+      "request": {
+        "method": "OPTIONS",
+        "url": "{{baseUrl}}/incidents",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "http://localhost:3000"
+          },
+          {
+            "key": "Access-Control-Request-Method",
+            "value": "POST"
+          },
+          {
+            "key": "Access-Control-Request-Headers",
+            "value": "authorization,content-type"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('preflight is successful', () => {",
+              "  pm.expect([200, 204]).to.include(pm.response.code);",
+              "});",
+              "pm.test('CORS allow origin header exists', () => {",
+              "  pm.expect(pm.response.headers.get('Access-Control-Allow-Origin')).to.eql('http://localhost:3000');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Method protection - unsupported method should not expose internals",
+      "request": {
+        "method": "PUT",
+        "url": "{{baseUrl}}/incidents/all",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{userToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('unsupported method is rejected', () => {",
+              "  pm.expect([400, 405]).to.include(pm.response.code);",
+              "});",
+              "pm.test('response does not expose stacktrace', () => {",
+              "  pm.expect(pm.response.text().toLowerCase()).to.not.include('exception');",
+              "  pm.expect(pm.response.text().toLowerCase()).to.not.include('stacktrace');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Input validation - malicious title should not crash service",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/incidents",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{userToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"incidentTitle\": \"<script>alert('xss')</script>\",\n  \"incidentSummary\": \"Security test payload\",\n  \"coordinates\": {\n    \"crs\": \"EPSG:4326\",\n    \"x\": \"51.7592\",\n    \"y\": \"19.4559\"\n  },\n  \"incidentType\": \"FIRE\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('service does not crash on suspicious input', () => {",
+              "  pm.expect([201, 400]).to.include(pm.response.code);",
+              "});",
+              "pm.test('no 5xx error', () => {",
+              "  pm.expect(pm.response.code).to.be.below(500);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "SQL injection-like ID should not crash service",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/incidents/00000000-0000-0000-0000-000000000000%27%20OR%20%271%27%3D%271",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{userToken}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('malformed id is rejected safely', () => {",
+              "  pm.expect([400, 404]).to.include(pm.response.code);",
+              "});",
+              "pm.test('no 5xx error', () => {",
+              "  pm.expect(pm.response.code).to.be.below(500);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
