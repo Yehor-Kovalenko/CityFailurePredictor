@@ -1,37 +1,35 @@
-from dataclasses import dataclass
 import json
+import logging
 
-
-@dataclass
-class ModelConfig:
-    model_type: str
-    model_version: str
+logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
 
-    def __init__(self, config_path: str):
-        self.task_configs = self._load_configs(config_path)
+    def __init__(self):
+        self.configs_dir = "../Domain/Resources/Configs"
 
-    def _load_configs(self, config_path: str):
+    def resolve(self, task: str):
 
-        with open(config_path, "r") as file:
-            raw_config = json.load(file)
+        path = f"{self.configs_dir}/{task}/inference_config.json"
 
-        configs = {}
+        logger.info("Loading config task=%s path=%s", task, path)
 
-        for task, config in raw_config.items():
+        with open(path, "r") as f:
+            config = json.load(f)
 
-            configs[task] = ModelConfig(
-                model_type=config["model_type"],
-                model_version=config["model_version"]
-            )
+        # safe generic logging
+        model_type = config.get("model", {}).get("type")
+        model_path = config.get("model", {}).get("path")
 
-        return configs
+        features = config.get("features", {})
 
-    def get_config(self, task: str) -> ModelConfig:
+        logger.info(
+            "Config loaded task=%s model=%s path=%s features_keys=%s",
+            task,
+            model_type,
+            model_path,
+            list(features.keys()) if isinstance(features, dict) else None
+        )
 
-        if task not in self.task_configs:
-            raise ValueError(f"No configuration for task: {task}")
-
-        return self.task_configs[task]
+        return config

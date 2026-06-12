@@ -60,7 +60,7 @@ def resolve_house_ids(config):
 # ----------------------------
 def main():
 
-    config_path = "../../Domain/Resources/LondonHouse/train_config.json"
+    config_path = "../../Domain/Resources/Configs/electricity/train_config.json"
 
     with open(config_path, "r") as f:
         config = json.load(f)
@@ -163,7 +163,7 @@ def main():
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     run_dir = os.path.join(
-        "../../Domain/Resources/LondonHouse",
+        "../../Domain/Resources/ModelWeights/electricity_weights",
         model_type,
         timestamp
     )

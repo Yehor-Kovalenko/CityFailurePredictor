@@ -9,6 +9,9 @@ from AI.Domain.Models.ngboost_model import NGBoostModel
 from AI.Domain.Models.xgboost_model import XGBoostModel
 from AI.Orchestration.request_manager import Request
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 # =========================================================
 # REQUEST OBJECT
@@ -20,17 +23,16 @@ from AI.Orchestration.request_manager import Request
 # =========================================================
 class InferenceEnergyService:
 
-    def __init__(self, config_path: str):
+    def __init__(self, config: dict):
 
-        with open(config_path, "r") as f:
-            self.config = json.load(f)
+        self.config = config
 
-        self.model_type = self.config["model"]["type"].lower()
-        self.model_path = self.config["model"]["path"]
+        self.model_type = config["model"]["type"].lower()
+        self.model_path = config["model"]["path"]
 
-        self.window_size = self.config["features"]["window_size"]
-        self.lookback_hours = self.config["features"]["lookback_hours"]
-        self.horizon = self.config["features"]["horizon"]
+        self.window_size = config["features"]["window_size"]
+        self.lookback_hours = config["features"]["lookback_hours"]
+        self.horizon = config["features"]["horizon"]
 
         self.model = self._load_model()
 
@@ -50,24 +52,24 @@ class InferenceEnergyService:
         return model
 
     # ----------------------------
-    def _build_input(self, values, window_size):
+    def _build_input(self, values):
+
         values = np.asarray(values)
 
-        if len(values) < window_size:
+        if len(values) < self.window_size:
             raise ValueError(
-                f"Not enough history: {len(values)} < {window_size}"
+                f"Not enough history: {len(values)} < {self.window_size}"
             )
 
-        return values[-window_size:].reshape(1, -1)
+        return values[-self.window_size:].reshape(1, -1)
 
     # ----------------------------
-    def _forecast(self, values, window_size, horizon):
+    def _forecast(self, values):
 
-        window = np.asarray(values[-window_size:]).copy()
+        window = np.asarray(values[-self.window_size:]).copy()
         preds = []
 
-        for _ in range(horizon):
-
+        for _ in range(self.horizon):
             X = window.reshape(1, -1)
             pred = self.model.predict(X)[0]
 
@@ -79,47 +81,34 @@ class InferenceEnergyService:
         return np.array(preds)
 
     # ----------------------------
-    def handle_request(self, request: Request):
+    def handle_request(self, request):
 
-        if request.task != "electricity_forecast":
-            raise ValueError(f"Unsupported task: {request.task}")
-
-        # ----------------------------
-        # PARAM OVERRIDES
-        # ----------------------------
-        window_size = (
-            request.params.get("window_size")
-            if request.params else self.window_size
+        logger.info(
+            "Handling inference request task=%s timestamp=%s data_len=%s",
+            request.task,
+            request.timestamp,
+            len(request.data),
         )
 
-        horizon = (
-            request.params.get("horizon")
-            if request.params else self.horizon
-        )
-
-        # ----------------------------
-        # DATA
-        # ----------------------------
         values = np.asarray(request.data)
 
-        # ----------------------------
-        # NEXT STEP PREDICTION
-        # ----------------------------
-        X = self._build_input(values, window_size)
+        X = self._build_input(values)
+
         next_pred = self.model.predict(X)[0]
 
-        # ----------------------------
-        # HORIZON FORECAST
-        # ----------------------------
-        horizon_pred = self._forecast(values, window_size, horizon)
+        horizon_pred = self._forecast(values)
 
-        # ----------------------------
-        # NGBOOST OPTIONAL OUTPUT
-        # ----------------------------
+        logger.info("Prediction generated next=%s horizon_len=%s",
+                    next_pred,
+                    len(horizon_pred))
+
         uncertainty = None
 
         if self.model_type == "ngboost":
+            logger.info("Computing NGBoost uncertainty")
+
             dist = self.model.model.pred_dist(X)
+
             mean = np.asarray(dist.loc)[0]
             std = np.asarray(dist.scale)[0]
 
@@ -134,37 +123,40 @@ class InferenceEnergyService:
                 "upper_95": float(upper[0]),
             }
 
-        # ----------------------------
-        # RESPONSE
-        # ----------------------------
-        return {
+            logger.info(
+                "Uncertainty computed mean=%s std=%s",
+                mean,
+                std,
+            )
+
+        result = {
             "task": request.task,
             "timestamp": request.timestamp.isoformat(),
             "model_type": self.model_type,
             "next_prediction": float(next_pred),
-            "horizon": horizon,
             "forecast": horizon_pred.tolist(),
-            "uncertainty": uncertainty
+            "uncertainty": uncertainty,
         }
 
+        logger.info("Inference completed successfully")
 
-if __name__ == "__main__":
+        return result
 
-    service = InferenceEnergyService(
-        "../../Domain/Resources/LondonHouse/inference_config.json"
-    )
 
-    last_24h_values = np.random.rand(24)
-
-    request = Request(
-        task="electricity_forecast",
-        timestamp=datetime.utcnow(),
-        data=last_24h_values,
-        params={
-            "window_size": 24,
-            "horizon": 48
-        }
-    )
-
-    result = service.handle_request(request)
-    print(result)
+## Potential use case example that it works
+# if __name__ == "__main__":
+#
+#     service = InferenceEnergyService(
+#         "../../Domain/Resources/Configs/Electricity/inference_config.json"
+#     )
+#
+#     last_24h_values = np.random.rand(24)
+#
+#     request = Request(
+#         task="electricity",
+#         timestamp=datetime.utcnow(),
+#         data=last_24h_values,
+#     )
+#
+#     result = service.handle_request(request)
+#     print(result)

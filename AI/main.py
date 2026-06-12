@@ -3,6 +3,8 @@ import uvicorn
 from fastapi import FastAPI
 
 import logging
+
+from AI.Orchestration.request_manager import RequestManager
 from Orchestration.config_manager import ConfigManager
 from Orchestration.kafka_config_loader import KafkaConfigLoader
 from Orchestration.kafka_consumer import ElectricityReadingKafkaConsumer
@@ -16,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI Service")
 
-config_manager = ConfigManager("configs/configs.json")
-
+request_manager = RequestManager()
 
 @app.get("/health")
 def health():
@@ -25,24 +26,19 @@ def health():
 
 
 def handle_ai_request(request):
+
     logger.info(
         "Received Kafka reading task=%s household_id=%s timestamp=%s kwh=%s",
         request.task,
-        request.data.household_id,
+        request.data,
         request.timestamp,
-        request.data.kwh
     )
 
-    model_config = config_manager.get_config(request.task)
+    result = request_manager.handle(request)
 
-    logger.info(
-        "Selected model type=%s version=%s",
-        model_config.model_type,
-        model_config.model_version
-    )
+    logger.info("Inference result=%s", result)
 
-    # TODO: inference/training
-
+    return result
 
 def start_consumer():
     kafka_config = KafkaConfigLoader.load("configs/kafka_config.json")
