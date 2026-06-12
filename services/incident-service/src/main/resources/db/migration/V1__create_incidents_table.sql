@@ -7,7 +7,7 @@ CREATE TABLE incidents (
     y               VARCHAR(50),
     incident_type   VARCHAR(50)     NOT NULL,
     incident_status VARCHAR(50)     NOT NULL DEFAULT 'OPEN',
-    timestamp       TIMESTAMP       NOT NULL,
-    last_updated    TIMESTAMP,
+    created_timestamp       TIMESTAMP       NOT NULL,
+    last_updated_timestamp    TIMESTAMP,
     CONSTRAINT pk_incidents PRIMARY KEY (id)
 );

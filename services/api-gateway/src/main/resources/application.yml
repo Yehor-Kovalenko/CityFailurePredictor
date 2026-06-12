@@ -5,27 +5,74 @@ spring:
   application:
     name: api-gateway
 
+  config:
+    label: main
+    import: "optional:configserver:http://config-server:8888"
+
   cloud:
     gateway:
       default-filters:
         - PreserveHostHeader
       routes:
-        - id: auth-service
+        - id: auth-service-direct
           uri: lb://auth-service
           predicates:
-            - Path=/auth/**,/oauth2/**,/login/**, /auth-service/**
+            - Path=/auth/**,/oauth2/**,/login/**,/login/oauth2/**
+
+        - id: auth-service-prefixed
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth-service/**
           filters:
             - StripPrefix=1
-        - id: incident-service
+
+        - id: incident-service-prefixed
           uri: lb://incident-service
           predicates:
-            - Path=/incident/**, /incidents/**, /incident-service/**
+            - Path=/incident-service/**
           filters:
             - StripPrefix=1
-        - id: data-ingestion-service
+
+        - id: incident-service-direct
+          uri: lb://incident-service
+          predicates:
+            - Path=/incidents/**
+
+        - id: data-ingestion-service-direct
           uri: lb://data-ingestion-service
           predicates:
             - Path=/data-ingestion/**
+
+        - id: data-ingestion-service-prefixed
+          uri: lb://data-ingestion-service
+          predicates:
+            - Path=/data-ingestion-service/**
+          filters:
+            - StripPrefix=1
+
+        - id: decision-service-direct
+          uri: lb://decision-service
+          predicates:
+            - Path=/decision/**
+
+        - id: decision-service-prefixed
+          uri: lb://decision-service
+          predicates:
+            - Path=/decision-service/**
+          filters:
+            - StripPrefix=1
+
+        - id: reporting-service-direct
+          uri: lb://reporting-service
+          predicates:
+            - Path=/reports/**
+
+        - id: reporting-service-prefixed
+          uri: lb://reporting-service
+          predicates:
+            - Path=/reporting-service/**
+          filters:
+            - StripPrefix=1
 
 eureka:
   instance:
@@ -57,3 +104,4 @@ springdoc:
   swagger-ui:
     urls-primary-name: api-gateway
     config-url: /swagger-config
+    persist-authorization: true

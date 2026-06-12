@@ -28,6 +28,9 @@ public class SecurityConfig {
     @Value("${app.swagger.allowed:false}")
     private boolean isSwaggerAllowed = false;
 
+    @Value("${app.frontend.origin:http://localhost:3000}")
+    private String frontendOrigin;
+
     public SecurityConfig(OAuthService oAuthService,
                           ObjectMapper objectMapper,
                           JwtService jwtService) {
@@ -73,13 +76,25 @@ public class SecurityConfig {
                             OAuth2User principal = (OAuth2User) authentication.getPrincipal();
 
                             AuthResult result = oAuthService.processGoogleUser(principal);
-
                             AuthResponse responseBody = toResponse(result);
 
-                            response.setStatus(HttpServletResponse.SC_OK);
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            String json = objectMapper.writeValueAsString(responseBody);
 
-                            objectMapper.writeValue(response.getWriter(), responseBody);
+                            response.setStatus(HttpServletResponse.SC_OK);
+                            response.setContentType(MediaType.TEXT_HTML_VALUE);
+
+                            response.getWriter().write("""
+                                    <!doctype html>
+                                    <html>
+                                    <body>
+                                    <script>
+                                        window.opener.postMessage(%s, "%s");
+                                        window.close();
+                                    </script>
+                                    Login successful. You can close this window.
+                                    </body>
+                                    </html>
+                                    """.formatted(json, frontendOrigin));
                         })
                 )
 

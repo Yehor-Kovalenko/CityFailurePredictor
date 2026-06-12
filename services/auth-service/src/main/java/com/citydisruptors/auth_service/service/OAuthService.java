@@ -7,8 +7,11 @@ import com.citydisruptors.auth_service.entity.dto.AuthResult;
 import com.citydisruptors.auth_service.repository.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+
+import java.util.Arrays;
 
 @Service
 public class OAuthService {
@@ -18,14 +21,17 @@ public class OAuthService {
     private final MeterRegistry registry;
 
     private final Timer loginTimer;
+    private final String adminEmailsRaw;
 
     public OAuthService(UserRepository userRepository,
                         JwtService jwtService,
-                        MeterRegistry registry) {
+                        MeterRegistry registry,
+                        @Value("${app.auth.admin-emails:}") String adminEmailsRaw) {
 
         this.userRepository = userRepository;
         this.jwtService = jwtService;
         this.registry = registry;
+        this.adminEmailsRaw = adminEmailsRaw;
 
         this.loginTimer = Timer.builder("auth.login.duration")
                 .description("Login duration")
@@ -52,7 +58,7 @@ public class OAuthService {
                             User u = new User();
                             u.setEmail(email);
                             u.setUsername(name);
-                            u.setRole(Role.ROLE_USER);
+                            u.setRole(resolveInitialRole(email));
                             u.setProvider("GOOGLE");
                             u.setProviderId(sub);
                             return userRepository.save(u);
@@ -69,5 +75,14 @@ public class OAuthService {
                 throw e;
             }
         });
+    }
+
+    private Role resolveInitialRole(String email) {
+        boolean isAdmin = Arrays.stream(adminEmailsRaw.split(","))
+                .map(String::trim)
+                .filter(adminEmail -> !adminEmail.isBlank())
+                .anyMatch(adminEmail -> adminEmail.equalsIgnoreCase(email));
+
+        return isAdmin ? Role.ROLE_ADMIN : Role.ROLE_USER;
     }
 }

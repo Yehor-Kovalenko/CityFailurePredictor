@@ -18,8 +18,8 @@ public class IncidentMapper {
                 incident.getCoordinates(),
                 incident.getIncidentType(),
                 incident.getIncidentStatus(),
-                incident.getTimestamp(),
-                incident.getLastUpdated()
+                incident.getCreatedTimestamp(),
+                incident.getLastUpdatedTimestamp()
         );
     }
 }

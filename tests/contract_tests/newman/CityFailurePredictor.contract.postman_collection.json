@@ -1,0 +1,501 @@
+{
+  "info": {
+    "name": "CityFailurePredictor - API Contract Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{bearerToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Create Incident - contract",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"incidentTitle\": \"Contract Test Incident\",\n  \"incidentSummary\": \"Incident created by Newman contract tests\",\n  \"coordinates\": {\n    \"crs\": \"EPSG:4326\",\n    \"x\": \"51.7592\",\n    \"y\": \"19.4559\"\n  },\n  \"incidentType\": \"ELECTRICITY\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 201 Created', () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.test('response has required incident fields', function () {",
+              "  ['id','incidentTitle','incidentSummary','coordinates','incidentType','status','timestamp','lastUpdated'].forEach(f => pm.expect(json).to.have.property(f));",
+              "});",
+              "pm.test('incident fields have valid values', function () {",
+              "  pm.expect(json.id).to.be.a('string').and.not.empty;",
+              "  pm.expect(json.incidentTitle).to.eql('Contract Test Incident');",
+              "  pm.expect(json.incidentType).to.eql('ELECTRICITY');",
+              "  pm.expect(['OPEN','IN_PROGRESS','RESOLVED']).to.include(json.status);",
+              "  pm.expect(json.coordinates.crs).to.eql('EPSG:4326');",
+              "  pm.expect(json.coordinates.x).to.be.a('string');",
+              "  pm.expect(json.coordinates.y).to.be.a('string');",
+              "});",
+              "pm.environment.set('incidentId', json.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get All Incidents - contract",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents/all",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents",
+            "all"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200 OK', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('response is an array', () => pm.expect(json).to.be.an('array'));",
+              "pm.test('each incident matches contract', function () {",
+              "  json.forEach(function (incident) {",
+              "    ['id','incidentTitle','coordinates','incidentType','status'].forEach(f => pm.expect(incident).to.have.property(f));",
+              "    pm.expect(['ELECTRICITY','WATER','ROADS','FIRE','ACCIDENT','FLOOD']).to.include(incident.incidentType);",
+              "    pm.expect(['OPEN','IN_PROGRESS','RESOLVED']).to.include(incident.status);",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Incident By ID - contract",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents/{{incidentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents",
+            "{{incidentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200 OK', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('returned incident has requested id', () => pm.expect(json.id).to.eql(pm.environment.get('incidentId')));",
+              "pm.test('returned incident matches contract', function () {",
+              "  pm.expect(json.incidentTitle).to.be.a('string');",
+              "  pm.expect(json.coordinates).to.be.an('object');",
+              "  pm.expect(json.coordinates.x).to.be.a('string');",
+              "  pm.expect(json.coordinates.y).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update Incident Status - contract",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents/{{incidentId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents",
+            "{{incidentId}}",
+            "status"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"IN_PROGRESS\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200 OK', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('incident status changed', function () {",
+              "  pm.expect(json.id).to.eql(pm.environment.get('incidentId'));",
+              "  pm.expect(json.status).to.eql('IN_PROGRESS');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Incident Statuses - contract",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents/statuses",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents",
+            "statuses"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200 OK', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('statuses contain expected enum values', function () {",
+              "  ['OPEN','IN_PROGRESS','RESOLVED'].forEach(s => pm.expect(json).to.include(s));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Incident - missing title should fail",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"incidentSummary\": \"Contract negative test\",\n  \"coordinates\": {\n    \"crs\": \"EPSG:4326\",\n    \"x\": \"51.7592\",\n    \"y\": \"19.4559\"\n  },\n  \"incidentType\": \"FIRE\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 400 Bad Request', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Incident - invalid type should fail",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"incidentTitle\": \"Invalid type contract test\",\n  \"incidentSummary\": \"Should fail because incidentType is invalid\",\n  \"coordinates\": {\n    \"crs\": \"EPSG:4326\",\n    \"x\": \"51.7592\",\n    \"y\": \"19.4559\"\n  },\n  \"incidentType\": \"ALIENS\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 400 Bad Request', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Incident By ID - not found",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents/00000000-0000-0000-0000-000000000000",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents",
+            "00000000-0000-0000-0000-000000000000"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 404 Not Found', () => pm.response.to.have.status(404));",
+              "pm.test('error response has expected structure', function () {",
+              "  const json = pm.response.json();",
+              "  ['code','message','timestamp'].forEach(f => pm.expect(json).to.have.property(f));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update Incident Status - invalid status should fail",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents/{{incidentId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents",
+            "{{incidentId}}",
+            "status"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"DESTROYED\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 400 Bad Request', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth - missing token should fail",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents/all",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents",
+            "all"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 401 Unauthorized without token', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete Incident - contract",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents/{{incidentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents",
+            "{{incidentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 204 No Content', () => pm.response.to.have.status(204));",
+              "pm.test('response body is empty', () => pm.expect(pm.response.text()).to.be.empty);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Deleted Incident - should return 404",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/incidents/{{incidentId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "incidents",
+            "{{incidentId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 404 Not Found after delete', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

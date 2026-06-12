@@ -14,12 +14,18 @@
     <artifactId>incident-service</artifactId>
     <dependencies>
         <!-- IMPORTANT START-->
-
         <!-- WEB -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
+        <!-- VALIDATION -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
         <!-- EUREKA -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
@@ -68,6 +74,11 @@
 
         <!-- IMPORTANT END-->
 
+        <!-- KAFKA -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
         <!-- JPA -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
