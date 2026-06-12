@@ -62,6 +62,18 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: reporting-service-direct
+          uri: lb://reporting-service
+          predicates:
+            - Path=/reports/**
+
+        - id: reporting-service-prefixed
+          uri: lb://reporting-service
+          predicates:
+            - Path=/reporting-service/**
+          filters:
+            - StripPrefix=1
+
 eureka:
   instance:
     instance-id: ${spring.application.name}:${server.port}

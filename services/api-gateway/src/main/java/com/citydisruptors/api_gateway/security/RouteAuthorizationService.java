@@ -28,6 +28,7 @@ public class RouteAuthorizationService {
             "/incident-service/v3/api-docs",
             "/data-ingestion-service/v3/api-docs",
             "/decision-service/v3/api-docs",
+            "/reporting-service/v3/api-docs",
 
             // Actuator gateway
             "/actuator"
@@ -86,8 +87,13 @@ public class RouteAuthorizationService {
         if (path.equals("/incidents") || path.startsWith("/incidents/") || path.startsWith("/incident-service/")) {
             return true;
         }
-        // TODO add guard so that only user that created incident can check its status and update it
 
+        /*
+         * Reporting Service
+         */
+        if (path.equals("/reports") || path.startsWith("/reports/") || path.startsWith("/reporting-service/")) {
+            return method == HttpMethod.GET || method == HttpMethod.POST;
+        }
 
         return false;
     }

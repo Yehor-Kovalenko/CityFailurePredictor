@@ -53,6 +53,13 @@ scrape_configs:
         labels:
           application: 'decision-service'
 
+  - job_name: 'reporting-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: [ 'reporting-service:8086' ]
+        labels:
+          application: 'reporting-service'
+
   - job_name: 'kafka'
     static_configs:
       - targets: [ 'kafka-exporter:9308' ]
@@ -76,3 +83,9 @@ scrape_configs:
       - targets: [ 'postgres-exporter-decision:9187' ]
         labels:
           application: 'postgres-decision'
+
+  - job_name: 'postgres-reporting'
+    static_configs:
+      - targets: [ 'postgres-exporter-reporting:9187' ]
+        labels:
+          application: 'postgres-reporting'

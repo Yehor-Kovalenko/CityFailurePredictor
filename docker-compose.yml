@@ -160,6 +160,22 @@ services:
       retries: 10
     restart: always
 
+  postgres-reporting:
+    image: postgres:15
+    container_name: postgres-reporting
+    environment:
+      POSTGRES_DB: reporting_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_reporting_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d reporting_db" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: always
+
   timescaledb-ingestion:
     image: timescale/timescaledb:latest-pg15
     container_name: timescaledb-ingestion
@@ -296,6 +312,39 @@ services:
       start_period: 10s
     restart: always
 
+  reporting-service:
+    container_name: reporting-service
+    build:
+      context: .
+      dockerfile: services/reporting-service/Dockerfile
+    ports:
+      - "8086:8086"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      LOG_FILE: /var/log/services/reporting-service.log
+    depends_on:
+      postgres-reporting:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+      incident-service:
+        condition: service_started
+      decision-service:
+        condition: service_started
+    volumes:
+      - log-volume:/var/log/services
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8086/actuator/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: always
+
 
   # --- Frontend ---
 
@@ -399,6 +448,16 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  postgres-exporter-reporting:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter-reporting
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres-reporting:5432/reporting_db?sslmode=disable"
+    depends_on:
+      postgres-reporting:
+        condition: service_healthy
+    restart: unless-stopped
+
   kafka-exporter:
     image: danielqsj/kafka-exporter:latest
     container_name: kafka-exporter
@@ -416,6 +475,7 @@ volumes:
   postgres_auth_data:
   postgres_incidents_data:
   postgres_decision_data:
+  postgres_reporting_data:
   timescaledb_ingestion_data:
   grafana_data:
   log-volume:
