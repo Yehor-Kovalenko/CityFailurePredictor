@@ -4,6 +4,7 @@ from typing import Any, Optional
 from datetime import datetime
 
 from AI.Execution.Inference.inference_london_house import InferenceEnergyService
+from AI.Execution.Inference.inference_routes import InferenceRoutesService
 from AI.Orchestration.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
@@ -19,15 +20,41 @@ class RequestManager:
 
     def __init__(self):
 
-        self.config_manager = ConfigManager()
-
         logger.info("Initializing RequestManager")
 
-        energy_config = self.config_manager.resolve("electricity")
+        self.config_manager = ConfigManager()
 
+        # -------------------------
+        # Electricity service
+        # -------------------------
+        energy_config = self.config_manager.resolve("electricity")
         self.energy_service = InferenceEnergyService(energy_config)
 
-        logger.info("Energy service initialized model=%s", energy_config["model"]["type"])
+        logger.info(
+            "Energy service initialized model=%s",
+            energy_config["model"]["type"]
+        )
+
+        #TODO
+        # # -------------------------
+        # # Traffic anomaly service
+        # # -------------------------
+        # traffic_anomaly_config = self.config_manager.resolve("traffic_anomaly")
+        # self.traffic_anomaly_service = InferenceTrafficService(traffic_anomaly_config)
+        #
+        # logger.info(
+        #     "Traffic service initialized model=%s",
+        #     traffic_anomaly_config["model"]["type"]
+        # )
+
+        # -------------------------
+        # Routes (VRP) service
+        # -------------------------
+        routes_config = self.config_manager.resolve("vrp")
+        self.routes_service = InferenceRoutesService(routes_config)
+
+        logger.info("Routes service initialized")
+
 
     def handle(self, request):
 
@@ -37,10 +64,12 @@ class RequestManager:
             request.timestamp,
         )
 
+        # -------------------------
+        # Electricity
+        # -------------------------
         if request.task == "electricity":
 
             logger.info("Starting electricity forecast")
-
 
             result = self.energy_service.handle_request(request)
 
@@ -52,5 +81,26 @@ class RequestManager:
 
             return result
 
+        # -------------------------
+        # Traffic anomaly
+        # -------------------------
+        elif request.task == "traffic_anomaly":
+
+            logger.info("Starting traffic anomaly detection")
+
+            return self.traffic_anomaly_service.handle_request(request)
+
+        # -------------------------
+        # VRP routes
+        # -------------------------
+        elif request.task == "vrp":
+
+            logger.info("Starting VRP optimization")
+
+            return self.routes_service.handle_request(request)
+
+        # -------------------------
+        # Unknown task
+        # -------------------------
         logger.error("Unsupported task=%s", request.task)
         raise ValueError(f"Unsupported task: {request.task}")
