@@ -40,9 +40,7 @@ public class CorrelationFilter extends OncePerRequestFilter {
                 .orElse(UUID.randomUUID().toString());
 
         MDC.put(MDC_KEY, correlationId);
-        logger.info("Auth filter fired with id: " + correlationId);
         response.setHeader(HEADER, correlationId);
-
 
         try {
             chain.doFilter(request, response);

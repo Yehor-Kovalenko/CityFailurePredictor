@@ -18,6 +18,7 @@ loki.process "enrich" {
       correlationId = "",
       service       = "",
       level         = "",
+      message       = "",
     }
   }
 
