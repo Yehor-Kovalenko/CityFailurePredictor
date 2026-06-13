@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -7,10 +8,12 @@ logger = logging.getLogger(__name__)
 class ConfigManager:
 
     def __init__(self):
-        self.configs_dir = "../Domain/Resources/Configs"
+        # get project root relative to this file (stable everywhere)
+        self.base_dir = Path(__file__).resolve().parents[1]
+        self.configs_dir = self.base_dir / "Domain" / "Resources" / "Configs"
 
     def resolve(self, task: str):
-        path = f"{self.configs_dir}/{task}/inference_config.json"
+        path = self.configs_dir / task / "inference_config.json"
 
         logger.info("Loading config task=%s path=%s", task, path)
 
@@ -35,6 +38,25 @@ class ConfigManager:
                 "coef_urgency": raw.get("coef_urgency"),
                 "tabu_max_iterations": raw.get("tabu_max_iterations"),
                 "tabu_tenure": raw.get("tabu_tenure"),
+            }
+
+        elif task == "traffic":
+            config = {
+                "model_type": raw.get("model", {}).get("type"),
+                "model_path": raw.get("model", {}).get("path"),
+
+                "features": {
+                    "window_size": raw.get("features", {}).get("window_size"),
+                    "use_hour": raw.get("features", {}).get("use_hour"),
+                    "use_day_of_week": raw.get("features", {}).get("use_day_of_week"),
+                    "use_lag_24": raw.get("features", {}).get("use_lag_24"),
+                    "use_lag_168": raw.get("features", {}).get("use_lag_168"),
+                    "use_rolling_mean_24": raw.get("features", {}).get("use_rolling_mean_24"),
+                },
+
+                "forecast": {
+                    "horizon": raw.get("forecast", {}).get("horizon", 24)
+                }
             }
 
         else:

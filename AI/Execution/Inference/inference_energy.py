@@ -7,7 +7,6 @@ from typing import Any, Optional
 
 from AI.Domain.Models.ngboost_model import NGBoostModel
 from AI.Domain.Models.xgboost_model import XGBoostModel
-from AI.Orchestration.request_manager import Request
 
 import logging
 
@@ -143,12 +142,15 @@ class InferenceEnergyService:
         return result
 
 
-## Potential use case example that it works
+# # Potential use case example that it works
 # if __name__ == "__main__":
 #
-#     service = InferenceEnergyService(
-#         "../../Domain/Resources/Configs/Electricity/inference_config.json"
-#     )
+#     config_path = "../../Domain/Resources/Configs/electricity/inference_config.json"
+#
+#     with open(config_path, "r") as f:
+#         config = json.load(f)
+#
+#     service = InferenceEnergyService(config)
 #
 #     last_24h_values = np.random.rand(24)
 #

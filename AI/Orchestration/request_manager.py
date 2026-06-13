@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from typing import Any, Optional
 from datetime import datetime
 
-from AI.Execution.Inference.inference_london_house import InferenceEnergyService
+from AI.Execution.Inference.inference_energy import InferenceEnergyService
 from AI.Execution.Inference.inference_routes import InferenceRoutesService
+from AI.Execution.Inference.inference_traffic import InferenceTrafficService
 from AI.Orchestration.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
@@ -35,17 +36,16 @@ class RequestManager:
             energy_config["model"]["type"]
         )
 
-        #TODO
-        # # -------------------------
-        # # Traffic anomaly service
-        # # -------------------------
-        # traffic_anomaly_config = self.config_manager.resolve("traffic_anomaly")
-        # self.traffic_anomaly_service = InferenceTrafficService(traffic_anomaly_config)
-        #
-        # logger.info(
-        #     "Traffic service initialized model=%s",
-        #     traffic_anomaly_config["model"]["type"]
-        # )
+        # -------------------------
+        # Traffic anomaly service
+        # -------------------------
+        traffic_anomaly_config = self.config_manager.resolve("traffic_anomaly")
+        self.traffic_anomaly_service = InferenceTrafficService(traffic_anomaly_config)
+
+        logger.info(
+            "Traffic service initialized model=%s",
+            traffic_anomaly_config["model"]["type"]
+        )
 
         # -------------------------
         # Routes (VRP) service
