@@ -7,6 +7,8 @@ import com.citydisruptors.auth_service.entity.dto.AuthResult;
 import com.citydisruptors.auth_service.repository.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,7 @@ import java.util.Arrays;
 @Service
 public class OAuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(OAuthService.class);
     private final UserRepository userRepository;
     private final JwtService jwtService;
     private final MeterRegistry registry;
@@ -40,7 +43,7 @@ public class OAuthService {
     }
 
     public AuthResult processGoogleUser(OAuth2User oAuth2User) {
-
+        log.info("Started processing Google Oauth2 user");
         return loginTimer.record(() -> {
             try {
                 String email = oAuth2User.getAttribute("email");
