@@ -4,7 +4,7 @@ import {
   CreateIncidentRequest,
   UpdateIncidentStatusRequest,
   IncidentStatus,
-  IncidentType,
+  IncidentType, Notification,
 } from "../types";
 import { clearStoredSession, getStoredSession } from "./authStorage";
 
@@ -88,4 +88,47 @@ class IncidentService {
   }
 }
 
-export default new IncidentService();
+class NotificationService {
+  private api: AxiosInstance;
+
+  constructor() {
+    this.api = axios.create({
+      baseURL: API_BASE_URL,
+      withCredentials: true,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    this.api.interceptors.request.use((config) => {
+      const session = getStoredSession();
+      if (session?.accessToken) {
+        config.headers.Authorization = `Bearer ${session.accessToken}`;
+      }
+      return config;
+    });
+
+    this.api.interceptors.response.use(
+        (response) => response,
+        (error) => {
+          if (error?.response?.status === 401) {
+            clearStoredSession();
+          }
+          return Promise.reject(error);
+        },
+    );
+  }
+
+  async getNotifications(): Promise<Notification[]> {
+    const response = await this.api.get<Notification[]>("/notifications");
+    return response.data;
+  }
+
+  async markNotificationAsRead(id: string): Promise<Notification> {
+    const response = await this.api.patch<Notification>(`/notifications/${id}/read`);
+    return response.data;
+  }
+}
+
+export const incidentService = new IncidentService();
+export const notificationService = new NotificationService();

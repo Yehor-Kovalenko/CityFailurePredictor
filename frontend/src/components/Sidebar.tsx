@@ -26,8 +26,8 @@ export function Sidebar({
   return (
     <div className="w-20 bg-gradient-to-b from-dark-800 to-dark-900 border-r border-dark-700 flex flex-col items-center py-6 space-y-8">
       {/* Logo */}
-      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
-        UG
+      <div className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold text-3xl">
+        🏙️
       </div>
 
       {/* Menu */}

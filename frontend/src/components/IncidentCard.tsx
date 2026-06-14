@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { CheckCircle, AlertCircle, Clock, Trash2 } from "lucide-react";
 import { Incident, IncidentStatus } from "../types";
-import incidentService from "../services/api";
+import {incidentService} from "../services/api";
 import {
   INCIDENT_TYPE_COLORS,
   INCIDENT_STATUS_COLORS,
   INCIDENT_TYPE_ICONS,
   INCIDENT_STATUS_ICONS,
 } from "../constants";
-import { formatTimestamp, formatDate } from "../utils/formatters";
+import {formatTimestamp, formatDate, shortenText} from "../utils/formatters";
+import {publish} from "@/utils/eventBroker.ts";
+import {EventFeedItemLevel} from "@/components/HeartbeatFeed.tsx";
 
 interface IncidentCardProps {
   incident: Incident;
@@ -30,8 +32,19 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
         status: newStatus,
       });
       onUpdate();
+      publish('event_feed', {
+        title: "Incident status updated",
+        summary: `${newStatus}`,
+        eventLevel: EventFeedItemLevel.INFO,
+        type: "Incidents"
+      });
     } catch (error) {
       console.error("Failed to update status:", error);
+      publish('event_feed', {
+        title: "Failed to update incident status",
+        eventLevel: EventFeedItemLevel.ERROR,
+        type: "Incidents"
+      });
     } finally {
       setLoading(false);
     }
@@ -43,6 +56,11 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
       try {
         await incidentService.deleteIncident(incident.id);
         onUpdate();
+        publish('event_feed', {
+          title: "Incident deleted",
+          eventLevel: EventFeedItemLevel.INFO,
+          type: "Incidents"
+        });
       } catch (error) {
         console.error("Failed to delete incident:", error);
         alert("Failed to delete incident");
@@ -64,18 +82,18 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4">
+    <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl hover:border-dark-500 transition-all p-4">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-start gap-3 flex-1">
           <span className="text-3xl">
             {INCIDENT_TYPE_ICONS[incident.incidentType]}
           </span>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 truncate">
+            <h3 className="font-semibold truncate">
               {incident.incidentTitle}
             </h3>
-            <p className="text-sm text-gray-600 line-clamp-2">
-              {incident.incidentSummary}
+            <p className="text-sm text-gray-500 line-clamp-2">
+              {shortenText(incident.incidentSummary, 30)}
             </p>
           </div>
         </div>
@@ -102,7 +120,7 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
         </span>
       </div>
 
-      <div className="mb-3 p-2 bg-gray-50 rounded text-sm text-gray-600">
+      <div className="mb-3 p-2 bg-gray-700 rounded text-sm">
         <div className="flex items-center gap-2">
           <span>📍</span>
           <span>
@@ -135,7 +153,7 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
       )}
 
       <div className="space-y-2">
-        <label className="block text-xs font-medium text-gray-700">
+        <label className="block text-xs font-medium">
           Update Status
         </label>
         <div className="flex gap-2">

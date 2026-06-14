@@ -20,10 +20,15 @@ class AuthService {
     }
 
     async loginWithGoogle(): Promise<AuthSession> {
+        const width = 900;
+        const height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+
         const popup = window.open(
             `${API_BASE_URL}/oauth2/authorization/google`,
             "city-failure-predictor-google-login",
-            "popup=yes,width=520,height=700",
+            `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
         );
 
         if (!popup) {
