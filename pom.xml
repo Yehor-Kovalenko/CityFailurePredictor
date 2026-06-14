@@ -23,6 +23,7 @@
         <module>services/data-ingestion-service</module>
         <module>services/decision-service</module>
         <module>services/reporting-service</module>
+        <module>services/notification-service</module>
     </modules>
 
     <properties>
