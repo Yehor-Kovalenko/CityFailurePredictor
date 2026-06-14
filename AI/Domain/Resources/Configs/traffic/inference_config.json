@@ -1,19 +1,13 @@
 {
   "model": {
     "type": "xgboost",
-    "path": "../../Domain/Resources/ModelWeights/traffic_weights/xgboost/2026-06-13_20-47-10/model.joblib"
+    "path": "traffic_weights/xgboost/2026-06-14_13-36-24/model.joblib"
   },
 
   "features": {
-    "window_size": 24,
-
+    "window_size": 6,
     "use_hour": true,
-    "use_day_of_week": true,
-
-    "use_lag_24": true,
-    "use_lag_168": true,
-
-    "use_rolling_mean_24": true
+    "use_day_of_week": true
   },
 
   "forecast": {

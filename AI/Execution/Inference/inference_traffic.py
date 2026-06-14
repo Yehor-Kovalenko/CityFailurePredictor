@@ -26,9 +26,6 @@ class InferenceTrafficService:
         self.window_size = config["features"]["window_size"]
         self.use_hour = config["features"]["use_hour"]
         self.use_day_of_week = config["features"]["use_day_of_week"]
-        self.use_lag_24 = config["features"]["use_lag_24"]
-        self.use_lag_168 = config["features"]["use_lag_168"]
-        self.use_rolling_mean_24 = config["features"]["use_rolling_mean_24"]
 
         self.horizon = config["forecast"]["horizon"]
 
@@ -39,9 +36,7 @@ class InferenceTrafficService:
             window_size=self.window_size,
             use_hour=self.use_hour,
             use_day_of_week=self.use_day_of_week,
-            use_lag_24=self.use_lag_24,
-            use_lag_168=self.use_lag_168,
-            use_rolling_mean_24=self.use_rolling_mean_24,
+
         )
 
     # ----------------------------
@@ -68,7 +63,11 @@ class InferenceTrafficService:
 
         X, _ = self.builder.transform(df)
 
-        # we only need last row for next-step prediction
+        if len(X) == 0:
+            raise ValueError(
+                f"Not enough data to build features. Need at least window_size={self.window_size} rows."
+            )
+
         return X[-1].reshape(1, -1)
 
     # ----------------------------
@@ -84,6 +83,12 @@ class InferenceTrafficService:
         for _ in range(self.horizon):
 
             X, _ = self.builder.transform(df)
+
+            if len(X) == 0:
+                raise ValueError(
+                    f"Not enough data during forecasting. Need at least window_size={self.window_size} rows."
+                )
+
             x_last = X[-1].reshape(1, -1)
 
             pred = self.model.predict(x_last)[0]
@@ -98,7 +103,7 @@ class InferenceTrafficService:
                 "Junction": df["Junction"].iloc[0]
             }
 
-            df = df.append(new_row, ignore_index=True)
+            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
         return np.array(preds)
 

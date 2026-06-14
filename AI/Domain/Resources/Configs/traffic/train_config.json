@@ -4,12 +4,9 @@
   },
 
   "features": {
-    "window_size": 24,
+    "window_size": 6,
     "use_hour": true,
-    "use_day_of_week": true,
-    "use_lag_24": true,
-    "use_lag_168": true,
-    "use_rolling_mean_24": true
+    "use_day_of_week": true
   },
 
   "forecast": {

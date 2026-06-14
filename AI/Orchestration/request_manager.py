@@ -4,8 +4,8 @@ from typing import Any, Optional
 from datetime import datetime
 
 from AI.Execution.Inference.inference_energy import InferenceEnergyService
-from AI.Execution.Inference.inference_routes import InferenceRoutesService
 from AI.Execution.Inference.inference_traffic import InferenceTrafficService
+from AI.Execution.Inference.inference_vrp import InferenceRoutesService
 from AI.Orchestration.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class RequestManager:
         # -------------------------
         # Traffic anomaly service
         # -------------------------
-        traffic_anomaly_config = self.config_manager.resolve("traffic_anomaly")
+        traffic_anomaly_config = self.config_manager.resolve("traffic")
         self.traffic_anomaly_service = InferenceTrafficService(traffic_anomaly_config)
 
         logger.info(
@@ -84,7 +84,7 @@ class RequestManager:
         # -------------------------
         # Traffic anomaly
         # -------------------------
-        elif request.task == "traffic_anomaly":
+        elif request.task == "traffic":
 
             logger.info("Starting traffic anomaly detection")
 
@@ -102,5 +102,6 @@ class RequestManager:
         # -------------------------
         # Unknown task
         # -------------------------
-        logger.error("Unsupported task=%s", request.task)
-        raise ValueError(f"Unsupported task: {request.task}")
+        else:
+            logger.error("Unsupported task=%s", request.task)
+            raise ValueError(f"Unsupported task: {request.task}")

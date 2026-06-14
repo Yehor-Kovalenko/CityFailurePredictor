@@ -1,31 +1,23 @@
 import logging
-
-from AI.Domain.Algorithms.VRPTW import euclidean_distance, VRPTW_ACO
+from AI.Domain.Algorithms.VRPTW import VRPTW_ACO, euclidean_distance
 
 logger = logging.getLogger(__name__)
 
 
 class InferenceRoutesService:
-
     def __init__(self, config):
         self.config = config
 
+        optimizer = config["optimizer"]
+
         logger.info(
             "Routes service initialized | ants=%s iterations=%s capacity=%s",
-            config["n_ants"],
-            config["iterations"],
-            config["vehicle_capacity"],
+            optimizer["n_ants"],
+            optimizer["iterations"],
+            optimizer["vehicle_capacity"],
         )
 
     def handle_request(self, request):
-        """
-        request.data expected:
-            {
-                "depot": Customer,
-                "customers": List[Customer]
-            }
-        """
-
         depot = request.data["depot"]
         customers = request.data["customers"]
 
@@ -39,7 +31,7 @@ class InferenceRoutesService:
         solver = VRPTW_ACO(
             depot=depot,
             customers=customers,
-            config=self.config,
+            config=self.config["optimizer"],
             distance_fn=euclidean_distance
         )
 

@@ -1,7 +1,7 @@
 {
   "model": {
     "type": "xgboost",
-    "path": "../../Domain/ModelWeights/electricity_weights/xgboost/2026-06-11_21-12-19/model.joblib"
+    "path": "electricity_weights/xgboost/2026-06-11_21-12-19/model.joblib"
   },
   "features": {
     "window_size": 24,

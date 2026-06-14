@@ -84,9 +84,6 @@ def main():
         window_size=config["features"]["window_size"],
         use_hour=config["features"]["use_hour"],
         use_day_of_week=config["features"]["use_day_of_week"],
-        use_lag_24=config["features"]["use_lag_24"],
-        use_lag_168=config["features"]["use_lag_168"],
-        use_rolling_mean_24=config["features"]["use_rolling_mean_24"]
     )
 
     X_train, y_train = builder.transform(train_df)
