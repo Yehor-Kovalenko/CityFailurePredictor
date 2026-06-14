@@ -60,6 +60,13 @@ scrape_configs:
         labels:
           application: 'reporting-service'
 
+  - job_name: 'notification-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: [ 'notification-service:8087' ]
+        labels:
+          application: 'notification-service'
+
   - job_name: 'kafka'
     static_configs:
       - targets: [ 'kafka-exporter:9308' ]

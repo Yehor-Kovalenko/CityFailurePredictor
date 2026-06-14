@@ -74,6 +74,18 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: notification-service-direct
+          uri: lb://notification-service
+          predicates:
+            - Path=/notifications/**
+
+        - id: notification-service-prefixed
+          uri: lb://notification-service
+          predicates:
+            - Path=/notification-service/**
+          filters:
+            - StripPrefix=1
+
 eureka:
   instance:
     instance-id: ${spring.application.name}:${server.port}

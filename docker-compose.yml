@@ -176,6 +176,22 @@ services:
       retries: 10
     restart: always
 
+  postgres-notifications:
+    image: postgres:15
+    container_name: postgres-notifications
+    environment:
+      POSTGRES_DB: notifications_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_notifications_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d notifications_db" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: always
+
   timescaledb-ingestion:
     image: timescale/timescaledb:latest-pg15
     container_name: timescaledb-ingestion
@@ -365,6 +381,35 @@ services:
       start_period: 10s
     restart: always
 
+  notification-service:
+    container_name: notification-service
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    ports:
+      - "8087:8087"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      LOG_FILE: /var/log/services/notification-service.log
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres-notifications:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+    volumes:
+      - log-volume:/var/log/services
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8087/actuator/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: always
+
 
   # --- Frontend ---
 
@@ -495,6 +540,7 @@ volumes:
   postgres_incidents_data:
   postgres_decision_data:
   postgres_reporting_data:
+  postgres_notifications_data:
   timescaledb_ingestion_data:
   grafana_data:
   log-volume:
