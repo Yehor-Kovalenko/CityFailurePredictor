@@ -1,0 +1,21 @@
+{
+  "model": {
+    "type": "xgboost"
+  },
+
+  "features": {
+    "window_size": 6,
+    "use_hour": true,
+    "use_day_of_week": true
+  },
+
+  "forecast": {
+    "horizon": 24
+  },
+
+  "split": {
+    "train_end": "2017-01-01",
+    "val_end": "2017-06-01",
+    "test_end": "2017-12-31"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "model": {
+    "type": "xgboost",
+    "path": "traffic_weights/xgboost/2026-06-14_13-36-24/model.joblib"
+  },
+
+  "features": {
+    "window_size": 6,
+    "use_hour": true,
+    "use_day_of_week": true
+  },
+
+  "forecast": {
+    "horizon": 24
+  },
+
+  "data": {
+    "frequency": "1H",
+    "target_column": "Vehicles",
+    "group_column": "Junction"
+  }
+}

@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 from sklearn.metrics import mean_absolute_error
 
-from AI.Domain.Datasets.feature_london_house_builder import FeatureLondonHouseBuilder
+from AI.Domain.Datasets.feature_builder_london_house import FeatureLondonHouseBuilder
 from AI.Domain.Datasets.london_house_loader import LondonSingleHouseLoader
 from AI.Domain.Models.ngboost_model import NGBoostModel
 from AI.Domain.Models.xgboost_model import XGBoostModel
@@ -60,7 +60,7 @@ def resolve_house_ids(config):
 # ----------------------------
 def main():
 
-    config_path = "../../Domain/Resources/LondonHouse/train_config.json"
+    config_path = "../../Domain/Resources/Configs/electricity/train_config.json"
 
     with open(config_path, "r") as f:
         config = json.load(f)
@@ -163,7 +163,7 @@ def main():
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     run_dir = os.path.join(
-        "../../Domain/Resources/LondonHouse",
+        "../../Domain/Resources/ModelWeights/electricity_weights",
         model_type,
         timestamp
     )
