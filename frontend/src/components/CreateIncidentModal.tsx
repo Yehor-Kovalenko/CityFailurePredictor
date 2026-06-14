@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { CreateIncidentRequest, Coordinates, IncidentType } from "../types";
-import incidentService from "../services/api";
+import {incidentService} from "../services/api";
 import {publish} from "@/utils/eventBroker.ts";
 import {shortenText} from "@/utils/formatters.ts";
 

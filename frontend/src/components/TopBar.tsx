@@ -1,22 +1,29 @@
 import { Search, Bell, LogOut, Plus } from "lucide-react";
 import { UserRole } from "../types";
+import React from "react";
 
 interface TopBarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  onNotificationsClick: () => void;
   onCreateClick: () => void;
   onLogout: () => void;
   userEmail: string;
   userRole: UserRole;
+  notificationDropdown?: React.ReactNode;
+  isNotificationsListOpen?: boolean
 }
 
 export function TopBar({
   searchQuery,
   onSearchChange,
+  onNotificationsClick,
   onCreateClick,
   onLogout,
   userEmail,
   userRole,
+  isNotificationsListOpen,
+  notificationDropdown
 }: TopBarProps) {
   return (
     <div className="bg-gradient-to-r from-dark-800 to-dark-800 border-b border-dark-700 px-6 py-4 flex items-center justify-between">
@@ -47,9 +54,14 @@ export function TopBar({
           Predictive Warnings
         </div>
 
-        <button className="p-2 hover:bg-dark-700 rounded-lg text-dark-400 hover:text-white transition-all">
+        <div className="relative">
+          <button
+            onClick={onNotificationsClick}
+            className="p-2 hover:bg-dark-700 rounded-lg text-dark-400 hover:text-white transition-all">
           <Bell size={20} />
-        </button>
+          </button>
+          {isNotificationsListOpen && notificationDropdown}
+        </div>
 
         <button
           onClick={onCreateClick}

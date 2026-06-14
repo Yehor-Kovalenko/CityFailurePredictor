@@ -7,9 +7,11 @@ import { SystemHealth } from "./components/SystemHealth";
 import { CreateIncidentModal } from "./components/CreateIncidentModal";
 import { LoginScreen } from "./components/LoginScreen";
 import { Incident } from "./types";
-import incidentService from "./services/api";
+import {incidentService, notificationService} from "./services/api";
 import { useAuth } from "./auth/AuthContext";
 import {IncidentDashboard} from "./components/IncidentDashboard.tsx";
+import NotificationDropdown from "@/components/NotificationDropdown.tsx";
+import {publish} from "@/utils/eventBroker.ts";
 
 const MOCK_INCIDENTS: Incident[] = [
   {
@@ -94,6 +96,7 @@ function App() {
     null,
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isNotificationsListOpen, setisNotificationsListOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const canAccessSettings = hasRole("ROLE_ADMIN");
 
@@ -188,13 +191,27 @@ function App() {
         <TopBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          onNotificationsClick={() => setisNotificationsListOpen(!isNotificationsListOpen)}
           onCreateClick={() => setIsModalOpen(true)}
           onLogout={() => {
             void handleLogout();
           }}
           userEmail={session.user.email}
           userRole={session.user.role}
-        />
+          isNotificationsListOpen={isNotificationsListOpen}
+          notificationDropdown={<NotificationDropdown
+                  loadNotifications={async () => {
+                    return await notificationService.getNotifications();
+                  }}
+                  markAsRead={async (id) => {
+                    await notificationService.markNotificationAsRead(id);
+                    publish("events_feed", {
+                      "title": "Notification marked as read"
+                    })
+                  }}
+              />
+          }
+          />
 
         {/* Main Layout */}
         <div className="flex-1 flex overflow-hidden">

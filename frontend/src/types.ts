@@ -61,3 +61,29 @@ export interface AuthSession {
   expiresAt: number;
   user: AuthUser;
 }
+
+export enum NotificationSeverity {
+  LOW = "LOW",
+  MEDIUM = "MEDIUM",
+  HIGH = "HIGH",
+  CRITICAL = "CRITICAL",
+}
+
+export enum NotificationStatus {
+  UNREAD = "UNREAD",
+  READ = "READ",
+}
+
+export interface Notification {
+  id: string,
+  alertId: string,
+  householdId: string,
+  title: string,
+  message: string,
+  severity: NotificationSeverity,
+  status: NotificationStatus,
+  riskScore: number,
+  predictedKwh: number,
+  targetTimestamp: string,
+  createdAt: string,
+}

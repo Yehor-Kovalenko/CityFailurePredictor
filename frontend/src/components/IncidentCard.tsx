@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CheckCircle, AlertCircle, Clock, Trash2 } from "lucide-react";
 import { Incident, IncidentStatus } from "../types";
-import incidentService from "../services/api";
+import {incidentService} from "../services/api";
 import {
   INCIDENT_TYPE_COLORS,
   INCIDENT_STATUS_COLORS,
