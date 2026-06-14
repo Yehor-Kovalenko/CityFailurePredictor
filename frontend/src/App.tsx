@@ -9,6 +9,7 @@ import { LoginScreen } from "./components/LoginScreen";
 import { Incident } from "./types";
 import incidentService from "./services/api";
 import { useAuth } from "./auth/AuthContext";
+import {IncidentDashboard} from "./components/IncidentDashboard.tsx";
 
 const MOCK_INCIDENTS: Incident[] = [
   {
@@ -216,53 +217,7 @@ function App() {
             )}
 
             {activeTab === "incidents" && (
-              <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl p-6">
-                <h2 className="text-2xl font-bold text-white mb-6">
-                  All Incidents
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredIncidents.length === 0 ? (
-                    <p className="col-span-full text-dark-400">
-                      No incidents found
-                    </p>
-                  ) : (
-                    filteredIncidents.map((incident) => (
-                      <div
-                        key={incident.id}
-                        onClick={() => setSelectedIncident(incident)}
-                        className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                          selectedIncident?.id === incident.id
-                            ? "bg-blue-500/20 border-blue-500"
-                            : "bg-dark-700 border-dark-600 hover:border-dark-500"
-                        }`}
-                      >
-                        <p className="font-bold text-white">
-                          {incident.incidentTitle}
-                        </p>
-                        <p className="text-sm text-dark-300 mt-2">
-                          {incident.incidentSummary}
-                        </p>
-                        <div className="flex gap-2 mt-3">
-                          <span className="text-xs px-2 py-1 bg-dark-600 text-dark-200 rounded">
-                            {incident.incidentType}
-                          </span>
-                          <span
-                            className={`text-xs px-2 py-1 rounded ${
-                              incident.status === "OPEN"
-                                ? "bg-red-500/20 text-red-400"
-                                : incident.status === "IN_PROGRESS"
-                                  ? "bg-yellow-500/20 text-yellow-400"
-                                  : "bg-green-500/20 text-green-400"
-                            }`}
-                          >
-                            {incident.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+                <IncidentDashboard />
             )}
 
             {activeTab === "analytics" && (

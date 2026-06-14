@@ -35,7 +35,7 @@ export function FilterBar({
             onChange={(e) =>
               onStatusChange((e.target.value as IncidentStatus) || undefined)
             }
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border text-black border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Statuses</option>
             {STATUSES.map((status) => (
@@ -55,7 +55,7 @@ export function FilterBar({
             onChange={(e) =>
               onTypeChange((e.target.value as IncidentType) || undefined)
             }
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border text-dark-900 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Types</option>
             {TYPES.map((type) => (

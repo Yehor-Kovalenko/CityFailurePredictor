@@ -164,28 +164,9 @@ export function MapView({
 
   return (
     <div className="h-full w-full rounded-xl border border-dark-700 overflow-hidden">
-      {incidents.length === 0 ? (
-        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-dark-800 to-dark-900">
-          <div className="text-center">
-            <p className="text-dark-400 text-lg">No incidents to display</p>
-            <p className="text-dark-500 text-sm mt-2">
-              Create or load incidents to see them on the map
-            </p>
-          </div>
-        </div>
-      ) : (
-        <MapContainer
-          center={defaultCenter}
-          zoom={13}
-          style={{ height: "100%", width: "100%" }}
-        >
-          <MapContent
-            incidents={incidents}
-            selectedIncident={selectedIncident}
-            onSelectIncident={onSelectIncident}
-          />
-        </MapContainer>
-      )}
+      <MapContainer center={defaultCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
+        <MapContent incidents={incidents} selectedIncident={selectedIncident} onSelectIncident={onSelectIncident}/>
+      </MapContainer>
     </div>
   );
 }

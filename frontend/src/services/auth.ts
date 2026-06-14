@@ -1,6 +1,7 @@
 import axios, {AxiosInstance} from "axios";
 import {AuthResponse, AuthSession} from "../types";
 import {clearStoredSession, getStoredSession, saveStoredSession, toSession,} from "./authStorage";
+import {he} from "date-fns/locale";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:9191";
 const LOGIN_TIMEOUT_MS = 2 * 60 * 1000;
@@ -20,10 +21,15 @@ class AuthService {
     }
 
     async loginWithGoogle(): Promise<AuthSession> {
+        const width = 900;
+        const height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+
         const popup = window.open(
             `${API_BASE_URL}/oauth2/authorization/google`,
             "city-failure-predictor-google-login",
-            "popup=yes,width=520,height=700",
+            `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
         );
 
         if (!popup) {
