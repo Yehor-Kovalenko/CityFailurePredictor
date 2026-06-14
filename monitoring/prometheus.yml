@@ -25,6 +25,13 @@ scrape_configs:
         labels:
           application: 'api-gateway'
 
+  - job_name: 'map-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: [ 'map-service:8086' ]
+        labels:
+          application: 'map-service'
+
   - job_name: 'config-server'
     metrics_path: '/actuator/prometheus'
     static_configs:

@@ -46,11 +46,9 @@ services:
       dockerfile: services/api-gateway/Dockerfile
     ports:
       - "9191:9191"
-      - "5005:5005"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/api-gateway.log
-      JAVA_TOOL_OPTIONS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
     depends_on:
       service-registry:
         condition: service_healthy
@@ -227,6 +225,23 @@ services:
     depends_on:
       postgres-incidents:
         condition: service_healthy
+      config-server:
+        condition: service_healthy
+    volumes:
+      - log-volume:/var/log/services
+    restart: always
+
+  map-service:
+    container_name: map-service
+    build:
+      context: .
+      dockerfile: services/map-service/Dockerfile
+    ports:
+      - "8086:8086"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      LOG_FILE: /var/log/services/map-service.log
+    depends_on:
       config-server:
         condition: service_healthy
     volumes:

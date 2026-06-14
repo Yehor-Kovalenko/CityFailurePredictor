@@ -22,6 +22,7 @@
         <module>services/incident-service</module>
         <module>services/data-ingestion-service</module>
         <module>services/decision-service</module>
+        <module>services/map-service</module>
     </modules>
 
     <properties>
