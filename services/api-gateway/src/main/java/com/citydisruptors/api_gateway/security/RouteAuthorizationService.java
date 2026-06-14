@@ -29,6 +29,7 @@ public class RouteAuthorizationService {
             "/data-ingestion-service/v3/api-docs",
             "/decision-service/v3/api-docs",
             "/reporting-service/v3/api-docs",
+            "/notification-service/v3/api-docs",
 
             // Actuator gateway
             "/actuator"
@@ -93,6 +94,13 @@ public class RouteAuthorizationService {
          */
         if (path.equals("/reports") || path.startsWith("/reports/") || path.startsWith("/reporting-service/")) {
             return method == HttpMethod.GET || method == HttpMethod.POST;
+        }
+
+        /*
+         * Notification Service
+         */
+        if (path.equals("/notifications") || path.startsWith("/notifications/") || path.startsWith("/notification-service/")) {
+            return method == HttpMethod.GET || method == HttpMethod.PATCH;
         }
 
         return false;
