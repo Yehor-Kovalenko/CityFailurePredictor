@@ -1,7 +1,6 @@
 import axios, {AxiosInstance} from "axios";
 import {AuthResponse, AuthSession} from "../types";
 import {clearStoredSession, getStoredSession, saveStoredSession, toSession,} from "./authStorage";
-import {he} from "date-fns/locale";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:9191";
 const LOGIN_TIMEOUT_MS = 2 * 60 * 1000;

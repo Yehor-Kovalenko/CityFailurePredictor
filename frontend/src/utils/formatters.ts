@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 
-export function formatTimestamp(timestamp: string): string {
+export function formatTimestamp(timestamp: number): string {
   return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
 }
 
@@ -12,4 +12,10 @@ export function formatDate(timestamp: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+export function shortenText(text: string, length: number): string {
+  if (text.length <= length) return text;
+
+  return text.slice(0, length - 3) + "...";
 }

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { CreateIncidentRequest, Coordinates, IncidentType } from "../types";
 import incidentService from "../services/api";
+import {publish} from "@/utils/eventBroker.ts";
+import {shortenText} from "@/utils/formatters.ts";
 
 interface CreateIncidentModalProps {
   isOpen: boolean;
@@ -64,6 +66,12 @@ export function CreateIncidentModal({
         crs: "EPSG:4326",
         incidentType: "FIRE",
       });
+      publish('event_feed', {
+        title: request.incidentTitle,
+        summary: shortenText(request.incidentSummary, 25),
+        type: "Incident created"
+      });
+
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to create incident");
     } finally {

@@ -5,6 +5,9 @@ import { CreateIncidentModal } from "./CreateIncidentModal";
 import { Incident, IncidentStatus, IncidentType } from "../types";
 import incidentService from "../services/api";
 import { AlertCircle, Plus, RefreshCw } from "lucide-react";
+import {publish} from "@/utils/eventBroker.ts";
+import {shortenText} from "@/utils/formatters.ts";
+import {EventFeedItemLevel} from "@/components/HeartbeatFeed.tsx";
 
 export function IncidentDashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -25,8 +28,18 @@ export function IncidentDashboard() {
         selectedType,
       );
       setIncidents(data);
+      publish('event_feed', {
+        title: "Incidents loaded",
+        eventLevel: EventFeedItemLevel.INFO,
+        type: "Incidents"
+      });
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to load incidents");
+      publish('event_feed', {
+        title: "Failed to load incidents",
+        eventLevel: EventFeedItemLevel.ERROR,
+        type: "Incidents"
+      });
     } finally {
       setLoading(false);
     }
@@ -45,12 +58,12 @@ export function IncidentDashboard() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen to-gray-100">
       <div className="max-w-6xl mx-auto p-4">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-4xl font-bold text-gray-900">
+            <h1 className="text-4xl font-bold ">
               🏙️ City Failure Predictor
             </h1>
             <button
@@ -62,18 +75,18 @@ export function IncidentDashboard() {
               <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
             </button>
           </div>
-          <p className="text-gray-600">
+          <p className="text-gray-300">
             Real-time incident management and monitoring system
           </p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl hover:border-dark-500 transition-all p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Incidents</p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-sm ">Total Incidents</p>
+                <p className="text-3xl font-bold ">
                   {incidents.length}
                 </p>
               </div>
@@ -81,20 +94,20 @@ export function IncidentDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl hover:border-dark-500 transition-all p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Open</p>
+                <p className="text-sm">Open</p>
                 <p className="text-3xl font-bold text-red-600">{openCounts}</p>
               </div>
               <span className="text-4xl">🔴</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl hover:border-dark-500 transition-all p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">In Progress</p>
+                <p className="text-sm">In Progress</p>
                 <p className="text-3xl font-bold text-yellow-600">
                   {inProgressCounts}
                 </p>
@@ -103,10 +116,10 @@ export function IncidentDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl hover:border-dark-500 transition-all p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Resolved</p>
+                <p className="text-sm">Resolved</p>
                 <p className="text-3xl font-bold text-green-600">
                   {resolvedCounts}
                 </p>
