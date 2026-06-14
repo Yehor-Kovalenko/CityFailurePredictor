@@ -1,12 +1,11 @@
-import { useState, useEffect } from "react";
-import { IncidentCard } from "./IncidentCard";
-import { FilterBar } from "./FilterBar";
-import { CreateIncidentModal } from "./CreateIncidentModal";
-import { Incident, IncidentStatus, IncidentType } from "../types";
+import {useEffect, useState} from "react";
+import {IncidentCard} from "./IncidentCard";
+import {FilterBar} from "./FilterBar";
+import {CreateIncidentModal} from "./CreateIncidentModal";
+import {Incident, IncidentStatus, IncidentType} from "../types";
 import {incidentService} from "../services/api";
-import { AlertCircle, Plus, RefreshCw } from "lucide-react";
+import {AlertCircle, Plus, RefreshCw} from "lucide-react";
 import {publish} from "@/utils/eventBroker.ts";
-import {shortenText} from "@/utils/formatters.ts";
 import {EventFeedItemLevel} from "@/components/HeartbeatFeed.tsx";
 
 export function IncidentDashboard() {
