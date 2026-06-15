@@ -1,22 +1,32 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
 
-# Ignore generated/static frontend assets in GitHub language stats
+# Generated build artifacts
 **/dist/** linguist-generated=true
 **/build/** linguist-generated=true
 **/target/** linguist-generated=true
-/resources/** linguist-generated=true
-/tests/**
+**/coverage/** linguist-generated=true
 **/node_modules/** linguist-vendored=true
 
-# If Swagger/static web assets are committed
+# Load/stress test generated reports
+tests/load_tests/**/* linguist-generated=true
+
+# Static/generated documentation and assets
+docs/** linguist-documentation=true
+architecture/** linguist-documentation=true
 **/swagger-ui/** linguist-vendored=true
 **/static/** linguist-generated=true
 
-# Count these as project-relevant
+# Maven wrapper scripts
+mvnw linguist-generated=true
+mvnw.cmd linguist-generated=true
+
+# Project-relevant languages
 *.java linguist-detectable=true
+*.ts linguist-detectable=true
+*.tsx linguist-detectable=true
+*.py linguist-detectable=true
 *.xml linguist-detectable=true
 *.yml linguist-detectable=true
 *.yaml linguist-detectable=true
-*.Dockerfile linguist-detectable=true
 Dockerfile linguist-detectable=true
