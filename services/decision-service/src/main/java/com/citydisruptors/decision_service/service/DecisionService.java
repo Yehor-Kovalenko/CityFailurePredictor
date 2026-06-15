@@ -10,6 +10,7 @@ import com.citydisruptors.decision_service.entity.RiskLevel;
 import com.citydisruptors.decision_service.repository.DecisionRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,21 @@ public class DecisionService {
     private final Counter alertsCreated;
     private final Counter duplicatesSkipped;
     private final MeterRegistry registry;
+
+    @Value("${app.decision.thresholds.medium-kwh:1.2}")
+    private double mediumKwh;
+
+    @Value("${app.decision.thresholds.high-kwh:1.8}")
+    private double highKwh;
+
+    @Value("${app.decision.thresholds.critical-kwh:2.5}")
+    private double criticalKwh;
+
+    @Value("${app.decision.thresholds.high-risk-score:0.65}")
+    private double highRiskScore;
+
+    @Value("${app.decision.thresholds.critical-risk-score:0.85}")
+    private double criticalRiskScore;
 
     public DecisionService(
             DecisionRepository repository,
@@ -126,22 +142,22 @@ public class DecisionService {
     }
 
     private double calculateRiskScore(PredictedReading reading) {
-        double score = 0.0;
+        double predicted = reading.predictedKwh() == null ? 0.0 : reading.predictedKwh();
+        double upper = reading.upperBoundKwh() == null ? predicted : reading.upperBoundKwh();
 
-        if (reading.predictedKwh() != null) {
-            if (reading.predictedKwh() >= 5.0) score += 0.7;
-            else if (reading.predictedKwh() >= 3.5) score += 0.55;
-            else if (reading.predictedKwh() >= 2.5) score += 0.35;
-            else score += 0.15;
-        }
+        double score = 0.10;
 
-        if (reading.upperBoundKwh() != null) {
-            if (reading.upperBoundKwh() >= 5.0) score += 0.25;
-            else if (reading.upperBoundKwh() >= 3.5) score += 0.15;
-        }
+        if (predicted >= criticalKwh) score += 0.75;
+        else if (predicted >= highKwh) score += 0.55;
+        else if (predicted >= mediumKwh) score += 0.35;
+        else score += 0.10;
+
+        if (upper >= criticalKwh) score += 0.20;
+        else if (upper >= highKwh) score += 0.15;
+        else if (upper >= mediumKwh) score += 0.05;
 
         if (reading.confidence() != null) {
-            score *= reading.confidence();
+            score *= Math.max(0.5, reading.confidence());
         }
 
         return Math.min(score, 1.0);
@@ -151,15 +167,15 @@ public class DecisionService {
         double predicted = predictedKwh == null ? 0.0 : predictedKwh;
         double upper = upperBoundKwh == null ? 0.0 : upperBoundKwh;
 
-        if (riskScore >= 0.90 || predicted >= 5.0 || upper >= 6.0) {
+        if (riskScore >= criticalRiskScore || predicted >= criticalKwh || upper >= criticalKwh) {
             return RiskLevel.CRITICAL;
         }
 
-        if (riskScore >= 0.70 || predicted >= 3.5 || upper >= 4.5) {
+        if (riskScore >= highRiskScore || predicted >= highKwh || upper >= highKwh) {
             return RiskLevel.HIGH;
         }
 
-        if (riskScore >= 0.45 || predicted >= 2.5) {
+        if (predicted >= mediumKwh || upper >= mediumKwh) {
             return RiskLevel.MEDIUM;
         }
 

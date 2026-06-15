@@ -131,6 +131,8 @@ services:
   postgres-incidents:
     image: postgres:15
     container_name: postgres-incidents
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_DB: incidents_db
       POSTGRES_USER: postgres
@@ -147,6 +149,8 @@ services:
   postgres-decision:
     image: postgres:15
     container_name: postgres-decision
+    ports:
+      - "5434:5432"
     environment:
       POSTGRES_DB: decision_db
       POSTGRES_USER: postgres
@@ -163,6 +167,8 @@ services:
   postgres-reporting:
     image: postgres:15
     container_name: postgres-reporting
+    ports:
+      - "5435:5432"
     environment:
       POSTGRES_DB: reporting_db
       POSTGRES_USER: postgres
@@ -179,6 +185,8 @@ services:
   postgres-notifications:
     image: postgres:15
     container_name: postgres-notifications
+    ports:
+      - "5436:5432"
     environment:
       POSTGRES_DB: notifications_db
       POSTGRES_USER: postgres
@@ -195,12 +203,12 @@ services:
   timescaledb-ingestion:
     image: timescale/timescaledb:latest-pg15
     container_name: timescaledb-ingestion
+    ports:
+      - "5437:5432"
     environment:
       POSTGRES_DB: ingestion_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5434:5432"
     volumes:
       - timescaledb_ingestion_data:/var/lib/postgresql/data
     healthcheck:
