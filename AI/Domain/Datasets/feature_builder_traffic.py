@@ -1,6 +1,3 @@
-from plotly.figure_factory._violin import pd, np
-
-
 import numpy as np
 import pandas as pd
 
@@ -8,10 +5,10 @@ import pandas as pd
 class TrafficFeatureBuilder:
 
     def __init__(
-        self,
-        window_size: int = 6,
-        use_hour: bool = True,
-        use_day_of_week: bool = True,
+            self,
+            window_size: int = 6,
+            use_hour: bool = True,
+            use_day_of_week: bool = True,
     ):
         self.window_size = window_size
         self.use_hour = use_hour

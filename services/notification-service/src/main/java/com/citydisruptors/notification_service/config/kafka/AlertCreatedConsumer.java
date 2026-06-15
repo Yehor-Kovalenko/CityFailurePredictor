@@ -22,7 +22,8 @@ public class AlertCreatedConsumer {
 
     @KafkaListener(
             topics = "${app.kafka.topics.alerts-created}",
-            groupId = "${spring.kafka.consumer.group-id}"
+            groupId = "${spring.kafka.consumer.group-id}",
+            containerFactory = "alertKafkaListenerContainerFactory"
     )
     public void consume(AlertCreatedEvent event) {
         try {

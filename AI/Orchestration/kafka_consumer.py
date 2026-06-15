@@ -1,12 +1,12 @@
 import json
 import time
-from Domain.Datasets.electricity_reading import ElectricityReading
-from Orchestration.request_manager import Request
 from confluent_kafka import Consumer, KafkaException, KafkaError, Message
 from dataclasses import dataclass
 from typing import Callable
 
 import logging
+from AI.Domain.Datasets.electricity_reading import ElectricityReading
+from AI.Orchestration.request_manager import Request
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,7 @@ class KafkaConsumerConfig:
     bootstrap_servers: str
     group_id: str
     topic: str
+    predictions_topic: str
     auto_offset_reset: str = "earliest"
     enable_auto_commit: bool = False
 
@@ -66,7 +67,7 @@ class ElectricityReadingKafkaConsumer:
         reading = ElectricityReading.from_kafka_event(event)
 
         return Request(
-            task="anomaly_detection",
+            task="electricity",
             data=reading,
             timestamp=reading.reading_timestamp
         )

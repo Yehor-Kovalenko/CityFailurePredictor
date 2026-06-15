@@ -1,7 +1,7 @@
 import json
 import os
 
-from Orchestration.kafka_consumer import KafkaConsumerConfig
+from AI.Orchestration.kafka_consumer import KafkaConsumerConfig
 
 
 class KafkaConfigLoader:
@@ -20,6 +20,7 @@ class KafkaConfigLoader:
             bootstrap_servers=bootstrap_servers,
             group_id=raw_config["group_id"],
             topic=raw_config["topics"]["electricity_raw"],
+            predictions_topic=raw_config["topics"]["predictions_generated"],
             auto_offset_reset=raw_config.get("auto_offset_reset", "earliest"),
-            enable_auto_commit=raw_config.get("enable_auto_commit", False)
+            enable_auto_commit=raw_config.get("enable_auto_commit", False),
         )
