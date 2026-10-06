@@ -2,9 +2,6 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
-      - develop
 
   pull_request:
     branches:
@@ -29,3 +26,14 @@ jobs:
 
       - name: Build application
         run: ./mvnw clean package -DskipTests
+
+      - name: Run tests
+        run: ./mvnw test
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-test-results
+          path: '**/target/surefire-reports/*.xml'
+          if-no-files-found: warn
