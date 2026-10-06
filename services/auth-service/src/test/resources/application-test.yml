@@ -1,0 +1,20 @@
+spring:
+  config:
+    import: ""
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test
+            client-secret: test
+
+  cloud:
+    config:
+      enabled: false
+    discovery:
+      enabled: false
+
+jwt:
+  secret: test-secret

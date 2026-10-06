@@ -1,4 +1,16 @@
 spring:
+  main:
+    banner-mode: off
+
+  config:
+    import: ""
+
+  cloud:
+    config:
+      enabled: false
+    discovery:
+      enabled: false
+
   datasource:
     url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL;NON_KEYWORDS=VALUE
     driver-class-name: org.h2.Driver
@@ -9,10 +21,7 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: none
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
+    show-sql: false
 
   flyway:
     enabled: true
@@ -22,7 +31,9 @@ spring:
     clean-on-validation-error: true
     clean-disabled: false
 
+eureka:
+  client:
+    enabled: false
+
 logging:
-  level:
-    org.flywaydb: DEBUG
-    org.springframework.test: DEBUG
+  config: classpath:logback-test.xml
