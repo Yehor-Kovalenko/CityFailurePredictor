@@ -10,6 +10,7 @@ import com.citydisruptors.decision_service.entity.RiskLevel;
 import com.citydisruptors.decision_service.repository.DecisionRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -28,17 +29,17 @@ class DecisionServiceTest {
         when(repository.findByPredictionId(anyString())).thenReturn(Optional.empty());
         when(repository.save(any(Decision.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        DecisionService service = new DecisionService(repository, producer, new SimpleMeterRegistry());
+        DecisionService service = createService(repository, producer);
 
         PredictionGeneratedEvent event = predictionBatch(
                 "batch-1",
                 "MAC000008",
                 new PredictedReading(
                         Instant.parse("2026-06-08T22:00:00Z"),
-                        4.2,
-                        0.91,
-                        3.5,
-                        5.1
+                        2.0,
+                        0.9,
+                        1.7,
+                        2.2
                 )
         );
 
@@ -63,7 +64,7 @@ class DecisionServiceTest {
         when(repository.findByPredictionId(anyString())).thenReturn(Optional.empty());
         when(repository.save(any(Decision.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        DecisionService service = new DecisionService(repository, producer, new SimpleMeterRegistry());
+        DecisionService service = createService(repository, producer);
 
         PredictionGeneratedEvent event = predictionBatch(
                 "batch-2",
@@ -99,7 +100,7 @@ class DecisionServiceTest {
 
         when(repository.findByPredictionId(anyString())).thenReturn(Optional.of(existing));
 
-        DecisionService service = new DecisionService(repository, producer, new SimpleMeterRegistry());
+        DecisionService service = createService(repository, producer);
 
         PredictionGeneratedEvent event = predictionBatch(
                 "batch-3",
@@ -120,6 +121,19 @@ class DecisionServiceTest {
 
         verify(repository, never()).save(any());
         verify(producer, never()).publish(any());
+    }
+
+    private DecisionService createService(DecisionRepository repository, AlertProducer producer) {
+        DecisionService service = new DecisionService(repository, producer, new SimpleMeterRegistry());
+
+        // @Value thresholds are not injected outside Spring, so apply the defaults explicitly
+        ReflectionTestUtils.setField(service, "mediumKwh", 1.2);
+        ReflectionTestUtils.setField(service, "highKwh", 1.8);
+        ReflectionTestUtils.setField(service, "criticalKwh", 2.5);
+        ReflectionTestUtils.setField(service, "highRiskScore", 0.65);
+        ReflectionTestUtils.setField(service, "criticalRiskScore", 0.85);
+
+        return service;
     }
 
     private PredictionGeneratedEvent predictionBatch(

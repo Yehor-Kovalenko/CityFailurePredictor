@@ -18,7 +18,7 @@ VALUES
      'Flood Warning',
      'River overflow detected near city center',
      'EPSG:4326', '51.755', '19.450',
-     'FLOOD', 'ACKNOWLEDGED',
+     'FLOOD', 'IN_PROGRESS',
      CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
     ('00000000-0000-0000-0000-000000000004',
@@ -32,5 +32,5 @@ VALUES
      'Electrical Outage',
      'Power outage affecting northern district',
      'EPSG:4326', '51.770', '19.440',
-     'ELECTRICITY', 'ARCHIVED',
+     'ELECTRICITY', 'RESOLVED',
      CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);

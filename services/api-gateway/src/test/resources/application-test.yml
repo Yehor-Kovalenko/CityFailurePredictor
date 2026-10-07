@@ -1,0 +1,17 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+
+  main:
+    banner-mode: off
+
+logging:
+  config: classpath:logback-test.xml
+
+eureka:
+  client:
+    enabled: false
+
+jwt:
+  secret: test-secret-key-for-unit-tests-only
