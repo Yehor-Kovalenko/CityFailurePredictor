@@ -1,0 +1,50 @@
+name: SonarQube
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  sonarqube-scan:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preparation
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Cache SonarQube packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: SQ Scan
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Upload SQ task metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonar-task
+          path: .scannerwork/report-task.txt
+          if-no-files-found: error
+  
+  sonarqube-quality-gate:
+    name: SonarQube Quality check
+    runs-on: ubuntu-latest
+    needs: sonarqube-scan
+    steps:
+      - name: Retrieve SQ scan metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: sonar-task
+          path: .scannerwork
+
+      - name: Perform Quality Gate check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        with:
+          pollingTimeoutSec: 300
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
