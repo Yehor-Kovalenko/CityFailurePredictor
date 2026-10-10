@@ -37,7 +37,7 @@ jobs:
     needs: sonarqube-scan
     steps:
       - name: Retrieve SQ scan metadata
-        uses: actions/download-artifact@4
+        uses: actions/download-artifact@v4
         with:
           name: sonar-task
           path: .scannerwork
