@@ -2,6 +2,9 @@ name: SonarQube
 on:
   pull_request:
     branches: [ main ]
+  # Analysing `main` keeps SonarQube's baseline current, so PR analyses only report issues in new code
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:

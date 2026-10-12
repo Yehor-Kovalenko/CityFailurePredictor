@@ -82,6 +82,7 @@ class AuthService {
                 },
             );
         } catch {
+            // Best effort: the local session is already cleared, a failed server-side logout is not fatal.
         }
     }
 }
