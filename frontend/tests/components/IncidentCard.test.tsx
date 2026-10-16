@@ -1,15 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Incident } from "../types";
-import { IncidentCard } from "./IncidentCard";
+import { Incident } from "@/types";
+import { IncidentCard } from "@/components/IncidentCard";
 
 const { updateIncidentStatus, deleteIncident } = vi.hoisted(() => ({
   updateIncidentStatus: vi.fn(),
   deleteIncident: vi.fn(),
 }));
 
-vi.mock("../services/api", () => ({
+vi.mock("@/services/api", () => ({
   incidentService: { updateIncidentStatus, deleteIncident },
 }));
 

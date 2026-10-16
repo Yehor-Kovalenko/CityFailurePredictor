@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { FilterBar } from "./FilterBar";
+import { FilterBar } from "@/components/FilterBar";
 
 function renderFilterBar(props: Partial<Parameters<typeof FilterBar>[0]> = {}) {
   const handlers = { onStatusChange: vi.fn(), onTypeChange: vi.fn() };

@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { publish, useSubscribe } from "./eventBroker";
+import { publish, useSubscribe } from "@/utils/eventBroker";
 
 describe("eventBroker", () => {
   it("delivers published data to subscribers of the event", () => {

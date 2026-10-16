@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthResponse, AuthSession } from "../types";
+import { AuthResponse, AuthSession } from "@/types";
 import {
   clearStoredSession,
   getAuthChangedEventName,
   getStoredSession,
   saveStoredSession,
   toSession,
-} from "./authStorage";
+} from "@/services/authStorage";
 
 const STORAGE_KEY = "city-failure-predictor.auth";
 const NOW = new Date("2026-01-15T12:00:00Z").getTime();

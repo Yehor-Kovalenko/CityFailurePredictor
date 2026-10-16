@@ -1,6 +1,6 @@
 import { AxiosError, AxiosHeaders } from "axios";
 import { describe, expect, it } from "vitest";
-import { getErrorMessage } from "./errors";
+import { getErrorMessage } from "@/utils/errors";
 
 function axiosErrorWith(data: unknown): AxiosError {
   const config = { headers: new AxiosHeaders() };

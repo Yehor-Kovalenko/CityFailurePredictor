@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { LoginScreen } from "./LoginScreen";
+import { LoginScreen } from "@/components/LoginScreen";
 
 describe("LoginScreen", () => {
   it("starts the Google login on click", async () => {

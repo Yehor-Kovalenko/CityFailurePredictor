@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatDate, formatTimestamp, shortenText } from "./formatters";
+import { formatDate, formatTimestamp, shortenText } from "@/utils/formatters";
 
 describe("shortenText", () => {
   it("returns an empty string for missing text", () => {
