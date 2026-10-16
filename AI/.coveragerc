@@ -1,0 +1,7 @@
+[run]
+source = AI
+omit =
+    AI/Tests/*
+
+[report]
+skip_empty = True

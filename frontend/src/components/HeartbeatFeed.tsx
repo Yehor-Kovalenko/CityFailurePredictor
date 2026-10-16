@@ -1,25 +1,14 @@
 import {AlertCircle, Info, Skull, XCircle} from "lucide-react";
-import { Incident } from "../types";
+import { EventFeedItem, EventFeedItemLevel, Incident } from "../types";
 import { formatTimestamp } from "../utils/formatters";
 import {useState} from "react";
 import {useSubscribe} from "@/utils/eventBroker.ts";
 
 interface HeartbeatFeedProps {
   incidents: Incident[];
-  alerts: any[];
+  alerts: unknown[];
 }
 
-export enum EventFeedItemLevel {
-  INFO, WARNING, ERROR, CRITICAL
-}
-export interface EventFeedItem {
-  title: string,
-  id?: string;
-  summary?: string,
-  type?: string,
-  eventLevel?: EventFeedItemLevel // INFO, WARNING, ERROR, CRITICAL. Default INFO
-  timestamp: number,
-}
 
 
 const eventLevelConfig = {
