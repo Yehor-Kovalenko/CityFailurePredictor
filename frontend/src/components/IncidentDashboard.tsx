@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {IncidentCard} from "./IncidentCard";
 import {FilterBar} from "./FilterBar";
 import {CreateIncidentModal} from "./CreateIncidentModal";
@@ -6,7 +6,8 @@ import {Incident, IncidentStatus, IncidentType} from "../types";
 import {incidentService} from "../services/api";
 import {AlertCircle, Plus, RefreshCw} from "lucide-react";
 import {publish} from "@/utils/eventBroker.ts";
-import {EventFeedItemLevel} from "@/components/HeartbeatFeed.tsx";
+import {EventFeedItemLevel} from "@/types";
+import {getErrorMessage} from "@/utils/errors.ts";
 
 export function IncidentDashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -18,7 +19,7 @@ export function IncidentDashboard() {
   const [selectedType, setSelectedType] = useState<IncidentType | undefined>();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const loadIncidents = async () => {
+  const loadIncidents = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -32,8 +33,8 @@ export function IncidentDashboard() {
         eventLevel: EventFeedItemLevel.INFO,
         type: "Incidents"
       });
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to load incidents");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to load incidents"));
       publish('event_feed', {
         title: "Failed to load incidents",
         eventLevel: EventFeedItemLevel.ERROR,
@@ -42,11 +43,11 @@ export function IncidentDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedStatus, selectedType]);
 
   useEffect(() => {
     loadIncidents();
-  }, [selectedStatus, selectedType]);
+  }, [loadIncidents]);
 
   const openCounts = incidents.filter((i) => i.status === "OPEN").length;
   const inProgressCounts = incidents.filter(

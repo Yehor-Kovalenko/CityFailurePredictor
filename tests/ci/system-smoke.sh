@@ -55,6 +55,6 @@ grep -q '"status":"UP"' <<< "$ai_health" || fail "serwis AI nie jest UP"
 ok "serwis AI = UP"
 
 # 6. Incident-service (health, endpoint z danymi) i config-server z repo konfiguracji
-CONFIG_URL="$CONFIG" SMOKE_TIMEOUT="$TIMEOUT" "$(dirname "$0")/smoke.sh" http://localhost:8082
+CONFIG_URL="$CONFIG" SMOKE_TIMEOUT="$TIMEOUT" bash "$(dirname "$0")/smoke.sh" http://localhost:8082
 
 echo "SYSTEM SMOKE PASSED"

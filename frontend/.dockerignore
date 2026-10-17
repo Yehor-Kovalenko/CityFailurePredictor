@@ -4,4 +4,5 @@ dist
 *.log
 .env.local
 .env.*.local
-.DS_Store
+.DS_Storecoverage
+test-results

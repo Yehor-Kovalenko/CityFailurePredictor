@@ -87,3 +87,15 @@ export interface Notification {
   targetTimestamp: string,
   createdAt: string,
 }
+export enum EventFeedItemLevel {
+  INFO, WARNING, ERROR, CRITICAL
+}
+
+export interface EventFeedItem {
+  title: string,
+  id?: string;
+  summary?: string,
+  type?: string,
+  eventLevel?: EventFeedItemLevel // INFO, WARNING, ERROR, CRITICAL. Default INFO
+  timestamp: number,
+}

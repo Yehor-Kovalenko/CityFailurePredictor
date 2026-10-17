@@ -4,6 +4,7 @@ import { CreateIncidentRequest, Coordinates, IncidentType } from "../types";
 import {incidentService} from "../services/api";
 import {publish} from "@/utils/eventBroker.ts";
 import {shortenText} from "@/utils/formatters.ts";
+import {getErrorMessage} from "@/utils/errors.ts";
 
 interface CreateIncidentModalProps {
   isOpen: boolean;
@@ -72,8 +73,8 @@ export function CreateIncidentModal({
         type: "Incident created"
       });
 
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to create incident");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to create incident"));
     } finally {
       setLoading(false);
     }

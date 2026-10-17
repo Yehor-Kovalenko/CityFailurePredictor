@@ -10,7 +10,7 @@ import {
 } from "../constants";
 import {formatTimestamp, formatDate, shortenText} from "../utils/formatters";
 import {publish} from "@/utils/eventBroker.ts";
-import {EventFeedItemLevel} from "@/components/HeartbeatFeed.tsx";
+import {EventFeedItemLevel} from "@/types";
 
 interface IncidentCardProps {
   incident: Incident;
@@ -161,6 +161,7 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
             <button
               key={status}
               onClick={() => handleStatusChange(status)}
+              aria-label={`Set status ${status}`}
               disabled={loading}
               className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
                 incident.status === status

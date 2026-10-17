@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 type EventCallback<T = unknown> = (data: T) => void;
 const listeners = new Map<string, Set<EventCallback>>();
@@ -23,5 +23,11 @@ function subscribe<T = unknown>(event: string, callback: EventCallback<T>): () =
 }
 
 export function useSubscribe<T = unknown>(event: string, callback: (data: T) => void): void {
-    useEffect(() => subscribe(event, callback), [event]);
+    // Keep the latest callback in a ref so re-renders don't re-subscribe, while stale closures are avoided.
+    const callbackRef = useRef(callback);
+    useEffect(() => {
+        callbackRef.current = callback;
+    }, [callback]);
+
+    useEffect(() => subscribe<T>(event, (data) => callbackRef.current(data)), [event]);
 }

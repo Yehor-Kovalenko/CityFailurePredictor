@@ -46,3 +46,9 @@ build/
 # Security Tests Generated
 /tests/security_tests/newman/security-results.json
 /tests/security_tests/package-lock.json
+
+# Python / test reports
+__pycache__/
+.pytest_cache/
+.coverage
+AI/test-results/
