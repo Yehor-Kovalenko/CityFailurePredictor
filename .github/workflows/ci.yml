@@ -6,9 +6,9 @@ name: CI
 #                    stages (image build & publish) build on, so artifacts always come from a green `main`
 #  - workflow_dispatch -> manual full run
 on:
-  pull_request:
-    branches: [ main ]
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
   workflow_dispatch:
 
@@ -235,6 +235,227 @@ jobs:
       - name: Type check and build
         run: npm run build
 
+  # ---------------------------------------------------------------
+  # Obrazy, smoke test całego systemu i publikacja (tylko push do main)
+  # ---------------------------------------------------------------
+  prepare:
+    name: Prepare image names and version
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, ai, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      owner: ${{ steps.meta.outputs.owner }}
+      version: ${{ steps.meta.outputs.version }}
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      run_number: ${{ steps.meta.outputs.run_number }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read version from pom.xml and compute tags
+        id: meta
+        run: |
+          VERSION="$(python3 -c "
+          import xml.etree.ElementTree as ET
+          root = ET.parse('pom.xml').getroot()
+          print(root.find('{http://maven.apache.org/POM/4.0.0}version').text)")"
+          {
+            echo "owner=${GITHUB_REPOSITORY_OWNER,,}"
+            echo "version=${VERSION}"
+            echo "short_sha=${GITHUB_SHA::12}"
+            echo "run_number=${GITHUB_RUN_NUMBER}"
+          } >> "$GITHUB_OUTPUT"
+
+  images:
+    name: Build image - ${{ matrix.service }}
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: service-registry
+            dockerfile: services/service-registry/Dockerfile
+            context: .
+          - service: config-server
+            dockerfile: services/config-server/Dockerfile
+            context: .
+          - service: api-gateway
+            dockerfile: services/api-gateway/Dockerfile
+            context: .
+          - service: auth-service
+            dockerfile: services/auth-service/Dockerfile
+            context: .
+          - service: incident-service
+            dockerfile: services/incident-service/Dockerfile
+            context: .
+          - service: data-ingestion-service
+            dockerfile: services/data-ingestion-service/Dockerfile
+            context: .
+          - service: ai-service
+            dockerfile: AI/Dockerfile
+            context: .
+          - service: decision-service
+            dockerfile: services/decision-service/Dockerfile
+            context: .
+          - service: reporting-service
+            dockerfile: services/reporting-service/Dockerfile
+            context: .
+          - service: notification-service
+            dockerfile: services/notification-service/Dockerfile
+            context: .
+          - service: frontend
+            dockerfile: frontend/Dockerfile
+            context: frontend
+            build_args: VITE_API_URL=http://localhost:9191
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Build and push (tag = commit SHA)"
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ghcr.io/${{ needs.prepare.outputs.owner }}/${{ matrix.service }}:sha-${{ needs.prepare.outputs.short_sha }}
+          build-args: ${{ matrix.build_args }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  system-smoke:
+    name: Smoke test - whole system
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [prepare, images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull images built in this run
+        run: |
+          for s in service-registry config-server api-gateway auth-service incident-service \
+                   data-ingestion-service ai-service decision-service reporting-service \
+                   notification-service frontend; do
+            docker pull "ghcr.io/${{ needs.prepare.outputs.owner }}/${s}:sha-${{ needs.prepare.outputs.short_sha }}"
+          done
+
+      # Config-server czyta prawdziwe repo konfiguracji przez deploy key.
+      # Klucz trafia do ~/.ssh, bo docker-compose.yml montuje ~/.ssh do config-servera.
+      - name: Prepare deploy key for config repo
+        env:
+          CONFIG_DEPLOY_KEY: ${{ secrets.CONFIG_REPO_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$CONFIG_DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+      - name: Prepare compose override and data directory
+        run: |
+          bash tests/ci/write-override.sh "${{ needs.prepare.outputs.owner }}" "sha-${{ needs.prepare.outputs.short_sha }}"
+          mkdir -p datasets/low-carbon-london
+
+      - name: Start system (docker compose, no build)
+        run: |
+          docker compose -f docker-compose.yml -f ci-override.yml up -d --no-build --wait --wait-timeout 420 \
+            service-registry config-server api-gateway auth-service incident-service \
+            data-ingestion-service ai-service decision-service reporting-service \
+            notification-service frontend
+
+      - name: System smoke test
+        run: bash tests/ci/system-smoke.sh
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker-compose.yml -f ci-override.yml ps -a > system-ps.txt 2>&1 || true
+          docker compose -f docker-compose.yml -f ci-override.yml logs --no-color --tail 300 > system-logs.txt 2>&1 || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-smoke-logs
+          path: |
+            system-ps.txt
+            system-logs.txt
+          retention-days: 14
+
+      - name: Stop system and remove deploy key
+        if: always()
+        run: |
+          docker compose -f docker-compose.yml -f ci-override.yml down -v || true
+          rm -f ~/.ssh/id_ed25519
+
+  publish:
+    name: Publish images with version tags
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [prepare, system-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Obrazy są już zbudowane i przetestowane (tag sha-*).
+      # Dodajemy tylko tagi wersji, bez ponownego budowania.
+      - name: Tag tested images with version and run number
+        run: |
+          OWNER="${{ needs.prepare.outputs.owner }}"
+          SRC_TAG="sha-${{ needs.prepare.outputs.short_sha }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
+          RUN="${{ needs.prepare.outputs.run_number }}"
+          for s in service-registry config-server api-gateway auth-service incident-service \
+                   data-ingestion-service ai-service decision-service reporting-service \
+                   notification-service frontend; do
+            SRC="ghcr.io/${OWNER}/${s}:${SRC_TAG}"
+            docker buildx imagetools create \
+              -t "ghcr.io/${OWNER}/${s}:${VERSION}-run${RUN}" \
+              -t "ghcr.io/${OWNER}/${s}:latest" \
+              "$SRC"
+          done
   # Single, stable status check for branch protection ("CI result"). Component jobs skipped by the
   # path filter count as success; any failed or cancelled job fails this check and blocks the merge.
   ci-result:
