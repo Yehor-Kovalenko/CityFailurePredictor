@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Weryfikacja obserwowalności uruchomionego systemu (metryki + centralne logi).
-# Zakłada, że system i stos obserwowalności (prometheus, loki, alloy) już działają.
+# Verify the observability of the running system (metrics + centralized logs).
+# Assumes that the system and the observability stack (Prometheus, Loki, Alloy)
+# are already running.
 #
-# Sprawdza cały tor, a nie tylko pojedyncze endpointy:
-#   1. każda usługa Spring wystawia /actuator/prometheus z metrykami i tagiem application,
-#   2. Prometheus scrapuje wszystkie usługi (target health = up),
-#   3. ruch wygenerowany na bramie jest widoczny w metryce http_server_requests w Prometheusie,
-#   4. logi wszystkich usług trafiają do Loki (przez Alloy),
-#   5. konkretne żądanie da się odnaleźć w Loki po jego X-Correlation-ID.
+# Validates the entire observability pipeline, not just individual endpoints:
+#   1. Each Spring service exposes /actuator/prometheus with metrics and an application tag.
+#   2. Prometheus scrapes all services (target health = up).
+#   3. Traffic generated through the gateway is visible in the http_server_requests metric in Prometheus.
+#   4. Logs from all services are delivered to Loki (via Alloy).
+#   5. A specific request can be found in Loki using its X-Correlation-ID.
 #
 # Usage: tests/ci/observability-check.sh
-# Env:   OBS_TIMEOUT (s, domyślnie 180), OBS_REPORT_DIR (domyślnie observability-report)
+# Env:   OBS_TIMEOUT (seconds, default: 180),
+#        OBS_REPORT_DIR (default: observability-report)
 set -euo pipefail
 
 TIMEOUT="${OBS_TIMEOUT:-180}"

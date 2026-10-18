@@ -411,6 +411,19 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # After the observability check, so the load test traffic does not skew its measurements
+      - name: Load test (k6)
+        run: bash tests/ci/load-test.sh
+
+      - name: Upload load test report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-report
+          path: load-test-report/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Collect logs on failure
         if: failure()
         run: |
