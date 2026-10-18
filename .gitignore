@@ -52,3 +52,7 @@ __pycache__/
 .pytest_cache/
 .coverage
 AI/test-results/
+
+# CI (generated locally by tests/ci scripts)
+ci-override.yml
+observability-report/

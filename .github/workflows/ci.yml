@@ -236,7 +236,7 @@ jobs:
         run: npm run build
 
   # ---------------------------------------------------------------
-  # Obrazy, smoke test całego systemu i publikacja (tylko push do main)
+  # Obrazy, smoke test i obserwowalność całego systemu, publikacja (tylko push do main)
   # ---------------------------------------------------------------
   prepare:
     name: Prepare image names and version
@@ -393,8 +393,23 @@ jobs:
             data-ingestion-service ai-service decision-service reporting-service \
             notification-service frontend
 
+      - name: Start observability stack
+        run: docker compose -f docker-compose.yml -f ci-override.yml up -d --no-build prometheus loki alloy
+
       - name: System smoke test
         run: bash tests/ci/system-smoke.sh
+
+      - name: Observability check (metrics and central logs)
+        run: bash tests/ci/observability-check.sh
+
+      - name: Upload observability report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: observability-report
+          path: observability-report/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Collect logs on failure
         if: failure()
