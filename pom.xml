@@ -28,10 +28,13 @@
 
     <properties>
         <java.version>21</java.version>
-        <spring-cloud.version>2023.0.3</spring-cloud.version>
+        <spring-cloud.version>2023.0.6</spring-cloud.version>
+        <tomcat.version>10.1.61</tomcat.version>
+        <commons-fileupload.version>1.6.0</commons-fileupload.version>
         <!-- Newer Byte Buddy so Mockito inline mocks work on JDK 25+ -->
         <byte-buddy.version>1.17.7</byte-buddy.version>
         <jacoco.version>0.8.15</jacoco.version>
+        <cyclonedx.version>2.9.3</cyclonedx.version>
     </properties>
 
     <dependencyManagement>
@@ -42,6 +45,11 @@
                 <version>${spring-cloud.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>commons-fileupload</groupId>
+                <artifactId>commons-fileupload</artifactId>
+                <version>${commons-fileupload.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -68,6 +76,17 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.cyclonedx</groupId>
+                <artifactId>cyclonedx-maven-plugin</artifactId>
+                <version>${cyclonedx.version}</version>
+                <configuration>
+                    <projectType>application</projectType>
+                    <outputFormat>json</outputFormat>
+                    <outputName>bom</outputName>
+                    <includeTestScope>false</includeTestScope>
+                </configuration>
             </plugin>
         </plugins>
     </build>

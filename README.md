@@ -162,7 +162,7 @@ The pipeline lives in `.github/workflows`. We use short-lived feature branches m
 
 | Workflow | Trigger | Purpose |
 | :--- | :--- | :--- |
-| `ci.yml` | PR to `main`, push to `main`, manual | Build, tests, container images, system validation |
+| `ci.yml` | PR to `main`, push to `main`, weekly (Mon 05:00 UTC), manual | Build, tests, security checks, container images, system validation |
 | `sonarq.yml` | PR to `main`, push to `main`, manual | Static code analysis with Quality Gate |
 | `jira-*.yml` | Branch created, PR opened, PR merged | Moves Jira issues: In Progress → Code Review → Done |
 
@@ -170,10 +170,12 @@ The pipeline lives in `.github/workflows`. We use short-lived feature branches m
 Pull request to main               Push to main (merge)
         ↓                                  ↓
 Detect changed components          Backend · AI · Frontend (all)
-        ↓                                  ↓
-Backend · AI · Frontend            Build & push images (sha-<commit>)
-        ↓                                  ↓
-CI result                          Whole-system smoke test
+        ↓                          Secret scan · Dockerfile lint · Supply chain
+Backend · AI · Frontend                    ↓
+Secret scan · Dockerfile lint      Build image → scan image → push (sha-<commit>)
+Supply chain                               ↓
+        ↓                          Whole-system smoke test
+CI result
                                            ↓
                                    Observability check
                                            ↓
@@ -189,7 +191,7 @@ CI result                          Whole-system smoke test
 | Component | What runs |
 | :--- | :--- |
 | Backend (Java) | `./mvnw verify`: build, JUnit tests, JaCoCo coverage |
-| AI service (Python) | `pytest` with `pytest-cov` |
+| AI service (Python) | `ruff check` lint, `pytest` with `pytest-cov` |
 | Frontend | ESLint, Vitest with coverage, type check and production build |
 
 * A failing test fails the job, and the **CI result** check (required for merging) fails with it.
@@ -204,9 +206,75 @@ Every PR and push to `main` is analysed by SonarQube Cloud (`sonar-project.prope
 
 ---
 
+## 🛡️ Security & Supply Chain
+
+These jobs run on every pull request, every push to `main` and weekly, regardless of which files changed: new CVEs are published every day, so an unchanged dependency can become vulnerable overnight. All of them are part of the required **CI result** check, and images are built only after they pass.
+
+| Job | Tooling | Fails when |
+| :--- | :--- | :--- |
+| Secret scan | Gitleaks over the **full git history** | A secret is found in any commit (a secret deleted later is still leaked) |
+| Dockerfile lint | Hadolint over all 11 Dockerfiles | A warning or error is reported |
+| Supply chain | CycloneDX SBOMs → license gate + Grype | A dependency has a denied license, or a vulnerability passes the risk policy below |
+| Image scan | Grype on every built image, **before it is pushed** | A vulnerability in the image (OS packages included) passes the risk policy |
+
+### SBOM
+
+One [CycloneDX](https://cyclonedx.org/) SBOM is generated per component from the resolved dependency tree, runtime scope only:
+
+| Component | Generator | File |
+| :--- | :--- | :--- |
+| Backend (all Maven modules) | `cyclonedx-maven-plugin` (aggregate) | `backend.cdx.json` |
+| Frontend | `@cyclonedx/cyclonedx-npm --omit dev` | `frontend.cdx.json` |
+| AI service | `cyclonedx-py environment` | `ai-service.cdx.json` |
+
+The SBOMs are both the input for the scans below and a deliverable: they are uploaded with the scan reports as the `supply-chain-reports` artifact (kept for 30 days).
+
+### Risk-based vulnerability gate (EPSS + CISA KEV)
+
+Blocking on CVSS severity alone does not work in practice: a typical Spring Boot service has dozens of "High" CVEs, most of which are never exploited, and teams end up ignoring the gate. `.github/scripts/vuln-gate.py` evaluates every Grype finding against two real-world exploitation signals:
+
+* **[CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)**: the catalog of vulnerabilities known to be exploited in the wild.
+* **[EPSS](https://www.first.org/epss/)**: the probability that a CVE will be exploited within the next 30 days.
+
+A finding **blocks** the pipeline when:
+
+* it is listed in CISA KEV, or
+* its severity is **High or Critical**, its EPSS score is **≥ 10%**, and a fixed version exists.
+
+Everything else is reported but does not block. The run **Summary** shows blocking findings and the top 10 non-blocking ones ranked by Grype's risk score, with the installed and fixed versions. Blocking findings also appear as error annotations.
+
+A finding that cannot be fixed yet can be accepted in `.grype.yaml` with a `reason`; accepted findings are counted in the summary so they stay visible.
+
+### License compliance
+
+`.github/scripts/license-gate.py` checks every Maven, npm and PyPI package in the SBOMs against `.github/license-policy.json`:
+
+* **Denied**: strong copyleft and non-open-source licenses (GPL, AGPL, SSPL, BUSL, CC-BY-NC, Commons Clause, Hippocratic). A package fails only if **every** license option in its SPDX expression is denied, so `MIT OR GPL-2.0` passes.
+* **Allowed**: weak copyleft (LGPL, EPL, MPL) and the GPL Classpath Exception used by the JDK-related libraries.
+* **Exceptions**: listed per package with a written reason (currently `react-leaflet`, Hippocratic-2.1).
+
+The summary shows violations, accepted exceptions, packages without license data, and the license distribution.
+
+### Secrets
+
+Gitleaks scans all commits, not only the current files. Findings that were reviewed and are known to be harmless (for example an expired development token) are listed by fingerprint in `.gitleaksignore`; any new finding fails the build. Reports are redacted, so the secret value is never printed in the logs.
+
+### Running the checks locally
+
+```bash
+./mvnw -q cyclonedx:makeAggregateBom                              # target/bom.json
+docker run --rm -v "$PWD:/repo" anchore/grype:v0.104.0 sbom:/repo/target/bom.json -o json > grype.json
+python3 .github/scripts/vuln-gate.py grype.json
+python3 .github/scripts/license-gate.py target/bom.json
+docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.28.0 git . --redact
+ruff check AI
+```
+
+---
+
 ## 🐳 Container Images
 
-On every push to `main` all 11 images (Spring services, AI service, frontend) are built with Docker Buildx and pushed to GitHub Container Registry: `ghcr.io/<owner>/<service>`.
+On every push to `main` all 11 images (Spring services, AI service, frontend) are built with Docker Buildx, scanned with Grype and only then pushed to GitHub Container Registry: `ghcr.io/<owner>/<service>`. An image that fails the vulnerability gate is never pushed.
 
 | Tag | When |
 | :--- | :--- |

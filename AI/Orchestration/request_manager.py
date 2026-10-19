@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 from datetime import datetime
 
 from AI.Execution.Inference.inference_energy import InferenceEnergyService
