@@ -22,7 +22,7 @@ PROMETHEUS="http://localhost:9090"
 LOKI="http://localhost:3100"
 REQUESTS=20
 
-# usługa:port - musi odpowiadać jobom w monitoring/prometheus.yml
+# service:port - must match the jobs in monitoring/prometheus.yml
 METRIC_TARGETS=(
   service-registry:8761
   config-server:8888
@@ -35,7 +35,7 @@ METRIC_TARGETS=(
   notification-service:8087
 )
 
-# Usługi z LOG_FILE w docker-compose.yml, których logi zbiera Alloy
+# Services with LOG_FILE in docker-compose.yml whose logs are collected by Alloy
 LOG_SERVICES=(
   api-gateway auth-service incident-service data-ingestion-service
   decision-service reporting-service notification-service
@@ -66,8 +66,8 @@ write_summary() {
   } >> "$GITHUB_STEP_SUMMARY"
 }
 
-# Ponawia polecenie aż do sukcesu albo upływu TIMEOUT.
-# Usage: retry "<opis>" <polecenie...>
+# Retries the command until it succeeds or TIMEOUT expires.
+# Usage: retry "<description>" <command...>
 retry() {
   local desc="$1"; shift
   local deadline=$((SECONDS + TIMEOUT))
@@ -81,23 +81,23 @@ prom_query() {
   curl -fsS -G "$PROMETHEUS/api/v1/query" --data-urlencode "query=$1"
 }
 
-command -v jq > /dev/null || fail "brak jq"
+command -v jq > /dev/null || fail "jq is not installed"
 mkdir -p "$REPORT_DIR/metrics"
 
-# 1. Endpoint metryk każdej usługi
+# 1. Metrics endpoint of every service
 for target in "${METRIC_TARGETS[@]}"; do
   name="${target%%:*}"
   port="${target##*:}"
   out="$REPORT_DIR/metrics/${name}.prom"
   curl -fsS "http://localhost:${port}/actuator/prometheus" -o "$out" \
-    || fail "$name: /actuator/prometheus nie odpowiada"
-  grep -q '^jvm_memory_used_bytes{' "$out" || fail "$name: brak metryki jvm_memory_used_bytes"
-  grep -q "application=\"${name}\"" "$out" || fail "$name: metryki bez tagu application=\"${name}\""
+    || fail "$name: /actuator/prometheus is not responding"
+  grep -q '^jvm_memory_used_bytes{' "$out" || fail "$name: jvm_memory_used_bytes metric is missing"
+  grep -q "application=\"${name}\"" "$out" || fail "$name: metrics are missing the tag application=\"${name}\""
 done
-ok "wszystkie ${#METRIC_TARGETS[@]} usługi wystawiają /actuator/prometheus z tagiem application"
+ok "all ${#METRIC_TARGETS[@]} services expose /actuator/prometheus with the application tag"
 
-# 2. Prometheus scrapuje wszystkie usługi
-retry "Prometheus nie jest gotowy" curl -fsS -o /dev/null "$PROMETHEUS/-/ready"
+# 2. Prometheus scrapes all services
+retry "Prometheus is not ready" curl -fsS -o /dev/null "$PROMETHEUS/-/ready"
 
 targets_up() {
   curl -fsS "$PROMETHEUS/api/v1/targets?state=active" > "$REPORT_DIR/prometheus-targets.json" || return 1
@@ -107,13 +107,13 @@ targets_up() {
     health="$(jq -r --arg job "$name" \
       '[.data.activeTargets[] | select(.labels.job == $job) | .health] | first // "missing"' \
       "$REPORT_DIR/prometheus-targets.json")"
-    [[ "$health" == "up" ]] || { echo "  czekam na target $name (health=$health)"; return 1; }
+    [[ "$health" == "up" ]] || { echo "  waiting for target $name (health=$health)"; return 1; }
   done
 }
-retry "Prometheus nie scrapuje wszystkich usług" targets_up
-ok "Prometheus scrapuje wszystkie ${#METRIC_TARGETS[@]} usługi (health=up)"
+retry "Prometheus is not scraping all services" targets_up
+ok "Prometheus scrapes all ${#METRIC_TARGETS[@]} services (health=up)"
 
-# 3. Ruch na bramie z jednym correlation ID, potem weryfikacja metryki w Prometheusie
+# 3. Gateway traffic with a single correlation ID, then verify the metric in Prometheus
 correlation_id="ci-obs-${GITHUB_RUN_ID:-local}-$(date +%s)-${RANDOM}"
 baseline="$(prom_query 'sum(http_server_requests_seconds_count{application="api-gateway"}) or vector(0)' \
   | jq -r '.data.result[0].value[1] // "0"')"
@@ -121,35 +121,35 @@ baseline="$(prom_query 'sum(http_server_requests_seconds_count{application="api-
 for _ in $(seq "$REQUESTS"); do
   echoed="$(curl -s -o /dev/null -D - -H "X-Correlation-ID: ${correlation_id}" "$GATEWAY/incidents/all" \
     | tr -d '\r' | awk -F': ' 'tolower($1) == "x-correlation-id" { print $2 }')"
-  [[ "$echoed" == "$correlation_id" ]] || fail "brama nie zwróciła nagłówka X-Correlation-ID"
+  [[ "$echoed" == "$correlation_id" ]] || fail "the gateway did not return the X-Correlation-ID header"
 done
-ok "brama propaguje X-Correlation-ID ($REQUESTS żądań, id=${correlation_id})"
+ok "the gateway propagates X-Correlation-ID ($REQUESTS requests, id=${correlation_id})"
 
 gateway_requests_counted() {
   local current
   current="$(prom_query 'sum(http_server_requests_seconds_count{application="api-gateway"})' \
     | jq -r '.data.result[0].value[1] // "0"')"
-  echo "  http_server_requests api-gateway: baseline=${baseline}, teraz=${current}"
+  echo "  http_server_requests api-gateway: baseline=${baseline}, now=${current}"
   awk -v c="$current" -v b="$baseline" -v n="$REQUESTS" 'BEGIN { exit !(c - b >= n) }'
 }
-retry "Prometheus nie zarejestrował ruchu na bramie" gateway_requests_counted
-ok "Prometheus zarejestrował ruch na bramie (metryka http_server_requests_seconds_count wzrosła o >= $REQUESTS)"
+retry "Prometheus did not record the gateway traffic" gateway_requests_counted
+ok "Prometheus recorded the gateway traffic (http_server_requests_seconds_count increased by >= $REQUESTS)"
 
-# 4. Logi wszystkich usług trafiają do Loki
-retry "Loki nie jest gotowe" bash -c "curl -fsS '$LOKI/ready' | grep -q ready"
+# 4. Logs from all services reach Loki
+retry "Loki is not ready" bash -c "curl -fsS '$LOKI/ready' | grep -q ready"
 
 services_logging() {
   curl -fsS "$LOKI/loki/api/v1/label/service/values" > "$REPORT_DIR/loki-services.json" || return 1
   local svc
   for svc in "${LOG_SERVICES[@]}"; do
     jq -e --arg s "$svc" '.data // [] | index($s) != null' "$REPORT_DIR/loki-services.json" > /dev/null \
-      || { echo "  czekam na logi usługi $svc w Loki"; return 1; }
+      || { echo "  waiting for logs of $svc in Loki"; return 1; }
   done
 }
-retry "nie wszystkie usługi wysyłają logi do Loki" services_logging
-ok "logi wszystkich ${#LOG_SERVICES[@]} usług docierają do Loki"
+retry "not all services are sending logs to Loki" services_logging
+ok "logs from all ${#LOG_SERVICES[@]} services reach Loki"
 
-# 5. Konkretne żądanie odnalezione w Loki po correlation ID
+# 5. A specific request found in Loki by its correlation ID
 correlated_log_found() {
   curl -fsS -G "$LOKI/loki/api/v1/query_range" \
     --data-urlencode "query={correlationId=\"${correlation_id}\"}" \
@@ -157,8 +157,8 @@ correlated_log_found() {
   jq -e '[.data.result[] | select(.stream.service == "api-gateway")] | length > 0' \
     "$REPORT_DIR/loki-correlation.json" > /dev/null
 }
-retry "w Loki brak logów żądania z correlationId=${correlation_id}" correlated_log_found
-ok "logi żądania z correlationId=${correlation_id} odnalezione w Loki"
+retry "no logs in Loki for the request with correlationId=${correlation_id}" correlated_log_found
+ok "logs of the request with correlationId=${correlation_id} found in Loki"
 
 write_summary
 echo "OBSERVABILITY CHECK PASSED"

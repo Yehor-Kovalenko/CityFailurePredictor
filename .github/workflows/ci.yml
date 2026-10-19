@@ -236,7 +236,7 @@ jobs:
         run: npm run build
 
   # ---------------------------------------------------------------
-  # Obrazy, smoke test i obserwowalność całego systemu, publikacja (tylko push do main)
+  # Images, whole-system smoke test and observability, publishing (push to main only)
   # ---------------------------------------------------------------
   prepare:
     name: Prepare image names and version
@@ -412,7 +412,7 @@ jobs:
           retention-days: 14
 
       # After the observability check, so the load test traffic does not skew its measurements
-      - name: Load test (k6)
+      - name: Load test (JMeter)
         run: bash tests/ci/load-test.sh
 
       - name: Upload load test report

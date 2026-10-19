@@ -38,6 +38,7 @@ build/
 *.zip
 *.csv
 !datasets/sample/*.csv
+!tests/load_tests/*.csv
 
 # Contract Tests Generated
 /tests/contract_tests/package-lock.json
