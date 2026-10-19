@@ -156,6 +156,90 @@ Example queries
 
 ---
 
+# 🚀 CI/CD (GitHub Actions)
+
+The pipeline lives in `.github/workflows`. We use short-lived feature branches merged into `main` via pull requests.
+
+| Workflow | Trigger | Purpose |
+| :--- | :--- | :--- |
+| `ci.yml` | PR to `main`, push to `main`, manual | Build, tests, container images, system validation |
+| `sonarq.yml` | PR to `main`, push to `main`, manual | Static code analysis with Quality Gate |
+| `jira-*.yml` | Branch created, PR opened, PR merged | Moves Jira issues: In Progress → Code Review → Done |
+
+```text
+Pull request to main               Push to main (merge)
+        ↓                                  ↓
+Detect changed components          Backend · AI · Frontend (all)
+        ↓                                  ↓
+Backend · AI · Frontend            Build & push images (sha-<commit>)
+        ↓                                  ↓
+CI result                          Whole-system smoke test
+                                           ↓
+                                   Observability check
+                                           ↓
+                                   Load test (JMeter)
+                                           ↓
+                                   Publish version tags
+```
+
+---
+
+## 🧪 Build & Tests
+
+| Component | What runs |
+| :--- | :--- |
+| Backend (Java) | `./mvnw verify`: build, JUnit tests, JaCoCo coverage |
+| AI service (Python) | `pytest` with `pytest-cov` |
+| Frontend | ESLint, Vitest with coverage, type check and production build |
+
+* A failing test fails the job, and the **CI result** check (required for merging) fails with it.
+* On pull requests only the changed components are built; outdated PR runs are cancelled.
+* Test reports appear as checks on the PR, coverage in the run **Summary**, and raw reports as `*-test-reports` artifacts (kept for 14 days).
+
+---
+
+## 🔍 Code Quality (SonarQube)
+
+Every PR and push to `main` is analysed by SonarQube Cloud (`sonar-project.properties`). A second job waits for the **Quality Gate** result and fails the workflow if the gate is not passed.
+
+---
+
+## 🐳 Container Images
+
+On every push to `main` all 11 images (Spring services, AI service, frontend) are built with Docker Buildx and pushed to GitHub Container Registry: `ghcr.io/<owner>/<service>`.
+
+| Tag | When |
+| :--- | :--- |
+| `sha-<commit>` | Every build (first 12 characters of the commit SHA) |
+| `<pom version>-run<run number>` | After the system validation passes |
+| `latest` | After the system validation passes |
+
+Version tags are added to the already tested images without rebuilding them.
+
+---
+
+## ✅ System Validation
+
+The whole system is started with `docker compose` from the images built in the same run, then checked by:
+
+| Step | Script | Checks |
+| :--- | :--- | :--- |
+| Smoke test | `tests/ci/system-smoke.sh` | All services registered in Eureka, gateway health `UP`, gateway rejects requests without a token (401), frontend, AI service and incident-service respond, config-server serves the config repo |
+| Observability check | `tests/ci/observability-check.sh` | Every service exposes `/actuator/prometheus`, Prometheus scrapes all targets, gateway traffic shows up in `http_server_requests`, logs of every service reach Loki, a request can be traced by `X-Correlation-ID` |
+| Load test | `tests/ci/load-test.sh` | Runs the JMeter plan from `tests/load_tests` at CI scale; fails if errors ≥ 1%, p95 ≥ 1000 ms or p99 ≥ 3000 ms |
+
+Results are shown in the run **Summary** and uploaded as `observability-report` and `load-test-report` artifacts. If anything fails, container logs are uploaded as `system-smoke-logs`.
+
+To run the checks locally against a running system:
+
+```bash
+bash tests/ci/system-smoke.sh
+bash tests/ci/observability-check.sh   # needs: docker compose up -d prometheus loki alloy
+bash tests/ci/load-test.sh             # macOS: LOAD_HOST=host.docker.internal JMETER_NETWORK=bridge
+```
+
+---
+
 # 🤖 Artificial Intelligence Module
 
 The AI module is implemented as a separate Python-based service located in the dedicated `AI/` directory. Unlike the remaining backend components, which are implemented as Spring Boot microservices, the AI module focuses on machine learning inference and optimization algorithms.
