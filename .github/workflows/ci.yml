@@ -674,13 +674,34 @@ jobs:
   # ---------------------------------------------------------------
   sonarqube-scan:
     name: SonarQube Scan
-    needs: [ backend, ai, frontend]
+    needs: [ changes, backend, ai, frontend]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     steps:
       - name: Preparation
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Download backend reports
+        if: needs.backend.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-test-reports
+          path: .sonar-reports/backend
+
+      - name: Download AI reports
+        if: needs.ai.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: ai-test-reports
+          path: AI/test-results
+
+      - name: Download frontend reports
+        if: needs.frontend.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-test-reports
+          path: .sonar-reports/frontend
       - name: Cache SonarQube packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
