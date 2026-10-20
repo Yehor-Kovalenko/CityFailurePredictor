@@ -109,6 +109,7 @@ jobs:
           path: |
             services/*/target/surefire-reports/*.xml
             services/*/target/site/jacoco/
+            services/*/target/classes/
           if-no-files-found: warn
           retention-days: 14
 
@@ -687,7 +688,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-test-reports
-          path: .sonar-reports/backend
+          path: services
 
       - name: Download AI reports
         if: needs.ai.result == 'success'
@@ -701,7 +702,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-test-reports
-          path: .sonar-reports/frontend
+          path: frontend
       - name: Cache SonarQube packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
