@@ -10,6 +10,8 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    - cron: '0 5 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -136,6 +138,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r AI/requirements-dev.txt
 
+      - name: Lint (ruff)
+        run: ruff check AI --output-format=github
+
       - name: Run tests with coverage
         env:
           PYTHONPATH: ${{ github.workspace }}
@@ -235,13 +240,160 @@ jobs:
       - name: Type check and build
         run: npm run build
 
+  secret-scan:
+    name: Secret scan (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan git history for secrets
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" -w /repo \
+            ghcr.io/gitleaks/gitleaks:v8.28.0 git . \
+            --no-banner --redact --exit-code 1 \
+            --report-format json --report-path gitleaks-report.json
+
+      - name: Add secret scan summary
+        if: ${{ !cancelled() && hashFiles('gitleaks-report.json') != '' }}
+        run: |
+          {
+            echo "### Secret scan (Gitleaks)"
+            echo
+            echo "**$(git rev-list --count HEAD)** commits scanned · **$(jq length gitleaks-report.json)** unaccepted findings"
+            echo
+            jq -r 'if length > 0 then
+                     "| Rule | File | Line | Commit |\n|---|---|---:|---|\n" +
+                     (map("| \(.RuleID) | `\(.File)` | \(.StartLine) | \(.Commit[0:12]) |") | join("\n"))
+                   else ":white_check_mark: No secrets found" end' gitleaks-report.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload secret scan report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+          retention-days: 7
+
+  dockerfile-lint:
+    name: Dockerfile lint (Hadolint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Lint all Dockerfiles
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
+          failure-threshold: warning
+
+  supply-chain:
+    name: Supply chain - SBOM, vulnerabilities & licenses
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: AI/requirements.txt
+
+      - name: Generate SBOM - backend (Maven)
+        run: |
+          mkdir -p sbom reports
+          ./mvnw -B --no-transfer-progress cyclonedx:makeAggregateBom
+          cp target/bom.json sbom/backend.cdx.json
+
+      - name: Generate SBOM - frontend (npm)
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          npx --yes @cyclonedx/cyclonedx-npm@4.0.2 --omit dev \
+            --output-format JSON --output-file ../sbom/frontend.cdx.json
+
+      - name: Generate SBOM - AI service (pip)
+        run: |
+          python -m venv "$RUNNER_TEMP/ai-env"
+          "$RUNNER_TEMP/ai-env/bin/pip" install --quiet -r AI/requirements.txt
+          pip install --quiet cyclonedx-bom==7.1.0
+          cyclonedx-py environment --output-format JSON -o sbom/ai-service.cdx.json "$RUNNER_TEMP/ai-env/bin/python"
+
+      - name: License compliance gate
+        run: |
+          python3 .github/scripts/license-gate.py sbom/*.cdx.json \
+            --policy .github/license-policy.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install Grype
+        id: grype
+        if: ${{ !cancelled() }}
+        uses: anchore/scan-action/download-grype@v6
+        with:
+          grype-version: v0.104.0
+
+      - name: Scan SBOMs for known vulnerabilities
+        id: scan
+        if: ${{ !cancelled() && steps.grype.outcome == 'success' }}
+        env:
+          GRYPE: ${{ steps.grype.outputs.cmd }}
+        run: |
+          for component in backend frontend ai-service; do
+            echo "::group::${component}"
+            "$GRYPE" "sbom:sbom/${component}.cdx.json" --config .grype.yaml \
+              -o table -o "json=reports/grype-${component}.json"
+            echo "::endgroup::"
+          done
+
+      - name: Vulnerability risk gate (EPSS + CISA KEV)
+        if: ${{ !cancelled() && steps.scan.outcome == 'success' }}
+        run: |
+          python3 .github/scripts/vuln-gate.py reports/grype-*.json \
+            --title "Dependency vulnerabilities" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload SBOMs and scan reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-chain-reports
+          path: |
+            sbom/
+            reports/
+          if-no-files-found: warn
+          retention-days: 30
+
   # ---------------------------------------------------------------
-  # Obrazy, smoke test całego systemu i publikacja (tylko push do main)
+  # Images, whole-system smoke test and observability, publishing (push to main only)
   # ---------------------------------------------------------------
   prepare:
     name: Prepare image names and version
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, ai, frontend]
+    needs: [backend, ai, frontend, secret-scan, dockerfile-lint, supply-chain]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -277,6 +429,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      IMAGE: ghcr.io/${{ needs.prepare.outputs.owner }}/${{ matrix.service }}:sha-${{ needs.prepare.outputs.short_sha }}
 
     strategy:
       fail-fast: false
@@ -331,16 +485,47 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Build and push (tag = commit SHA)"
+      - name: "Build image (tag = commit SHA)"
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          push: true
-          tags: ghcr.io/${{ needs.prepare.outputs.owner }}/${{ matrix.service }}:sha-${{ needs.prepare.outputs.short_sha }}
+          load: true
+          tags: ${{ env.IMAGE }}
           build-args: ${{ matrix.build_args }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Install Grype
+        id: grype
+        uses: anchore/scan-action/download-grype@v6
+        with:
+          grype-version: v0.104.0
+
+      - name: Scan image for known vulnerabilities
+        env:
+          GRYPE: ${{ steps.grype.outputs.cmd }}
+        run: |
+          mkdir -p reports
+          "$GRYPE" "docker:${IMAGE}" --config .grype.yaml \
+            -o table -o "json=reports/grype-${{ matrix.service }}.json"
+
+      - name: Vulnerability risk gate (EPSS + CISA KEV)
+        run: |
+          python3 .github/scripts/vuln-gate.py "reports/grype-${{ matrix.service }}.json" \
+            --title "Image ${{ matrix.service }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload image scan report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-scan-${{ matrix.service }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Push image
+        run: docker push "$IMAGE"
 
   system-smoke:
     name: Smoke test - whole system
@@ -371,8 +556,8 @@ jobs:
             docker pull "ghcr.io/${{ needs.prepare.outputs.owner }}/${s}:sha-${{ needs.prepare.outputs.short_sha }}"
           done
 
-      # Config-server czyta prawdziwe repo konfiguracji przez deploy key.
-      # Klucz trafia do ~/.ssh, bo docker-compose.yml montuje ~/.ssh do config-servera.
+      # Config-server reads the real configuration repo through a deploy key.
+      # The key goes to ~/.ssh because docker-compose.yml mounts ~/.ssh into config-server.
       - name: Prepare deploy key for config repo
         env:
           CONFIG_DEPLOY_KEY: ${{ secrets.CONFIG_REPO_DEPLOY_KEY }}
@@ -393,8 +578,36 @@ jobs:
             data-ingestion-service ai-service decision-service reporting-service \
             notification-service frontend
 
+      - name: Start observability stack
+        run: docker compose -f docker-compose.yml -f ci-override.yml up -d --no-build prometheus loki alloy
+
       - name: System smoke test
         run: bash tests/ci/system-smoke.sh
+
+      - name: Observability check (metrics and central logs)
+        run: bash tests/ci/observability-check.sh
+
+      - name: Upload observability report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: observability-report
+          path: observability-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      # After the observability check, so the load test traffic does not skew its measurements
+      - name: Load test (JMeter)
+        run: bash tests/ci/load-test.sh
+
+      - name: Upload load test report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-report
+          path: load-test-report/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Collect logs on failure
         if: failure()
@@ -439,8 +652,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Obrazy są już zbudowane i przetestowane (tag sha-*).
-      # Dodajemy tylko tagi wersji, bez ponownego budowania.
+      # Images are already built and tested (sha-* tag).
+      # Only version tags are added here, without rebuilding.
       - name: Tag tested images with version and run number
         run: |
           OWNER="${{ needs.prepare.outputs.owner }}"
@@ -460,7 +673,7 @@ jobs:
   # path filter count as success; any failed or cancelled job fails this check and blocks the merge.
   ci-result:
     name: CI result
-    needs: [ changes, backend, ai, frontend ]
+    needs: [ changes, backend, ai, frontend, secret-scan, dockerfile-lint, supply-chain ]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

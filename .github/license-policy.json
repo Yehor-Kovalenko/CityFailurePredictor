@@ -1,0 +1,31 @@
+{
+  "ecosystems": ["maven", "npm", "pypi"],
+  "allowed": [
+    "*-with-classpath-exception",
+    "* WITH Classpath-exception-2.0"
+  ],
+  "denied": [
+    "AGPL-*",
+    "GPL-*",
+    "SSPL-*",
+    "BUSL-*",
+    "CC-BY-NC-*",
+    "Commons-Clause",
+    "Hippocratic-*"
+  ],
+  "ignored": [
+    "pkg:maven/com.citydisruptors/"
+  ],
+  "exceptions": [
+    {
+      "package": "pkg:npm/react-leaflet@",
+      "license": "Hippocratic-2.1",
+      "reason": "Only maintained React binding for Leaflet; accepted for this non-commercial academic project. Re-evaluate before any commercial use."
+    },
+    {
+      "package": "pkg:npm/%40react-leaflet/core@",
+      "license": "Hippocratic-2.1",
+      "reason": "Internal part of react-leaflet, see the react-leaflet exception."
+    }
+  ]
+}

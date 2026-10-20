@@ -38,6 +38,7 @@ build/
 *.zip
 *.csv
 !datasets/sample/*.csv
+!tests/load_tests/*.csv
 
 # Contract Tests Generated
 /tests/contract_tests/package-lock.json
@@ -52,3 +53,8 @@ __pycache__/
 .pytest_cache/
 .coverage
 AI/test-results/
+
+# CI (generated locally by tests/ci scripts)
+ci-override.yml
+observability-report/
+load-test-report/

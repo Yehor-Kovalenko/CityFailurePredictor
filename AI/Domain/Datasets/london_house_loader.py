@@ -1,7 +1,6 @@
 import glob
 
 import pandas as pd
-import logging
 
 class LondonSingleHouseLoader:
 

@@ -156,6 +156,158 @@ Example queries
 
 ---
 
+# 🚀 CI/CD (GitHub Actions)
+
+The pipeline lives in `.github/workflows`. We use short-lived feature branches merged into `main` via pull requests.
+
+| Workflow | Trigger | Purpose |
+| :--- | :--- | :--- |
+| `ci.yml` | PR to `main`, push to `main`, weekly (Mon 05:00 UTC), manual | Build, tests, security checks, container images, system validation |
+| `sonarq.yml` | PR to `main`, push to `main`, manual | Static code analysis with Quality Gate |
+| `jira-*.yml` | Branch created, PR opened, PR merged | Moves Jira issues: In Progress → Code Review → Done |
+
+```text
+Pull request to main               Push to main (merge)
+        ↓                                  ↓
+Detect changed components          Backend · AI · Frontend (all)
+        ↓                          Secret scan · Dockerfile lint · Supply chain
+Backend · AI · Frontend                    ↓
+Secret scan · Dockerfile lint      Build image → scan image → push (sha-<commit>)
+Supply chain                               ↓
+        ↓                          Whole-system smoke test
+CI result
+                                           ↓
+                                   Observability check
+                                           ↓
+                                   Load test (JMeter)
+                                           ↓
+                                   Publish version tags
+```
+
+---
+
+## 🧪 Build & Tests
+
+| Component | What runs |
+| :--- | :--- |
+| Backend (Java) | `./mvnw verify`: build, JUnit tests, JaCoCo coverage |
+| AI service (Python) | `ruff check` lint, `pytest` with `pytest-cov` |
+| Frontend | ESLint, Vitest with coverage, type check and production build |
+
+* A failing test fails the job, and the **CI result** check (required for merging) fails with it.
+* On pull requests only the changed components are built; outdated PR runs are cancelled.
+* Test reports appear as checks on the PR, coverage in the run **Summary**, and raw reports as `*-test-reports` artifacts (kept for 14 days).
+
+---
+
+## 🔍 Code Quality (SonarQube)
+
+Every PR and push to `main` is analysed by SonarQube Cloud (`sonar-project.properties`). A second job waits for the **Quality Gate** result and fails the workflow if the gate is not passed.
+
+---
+
+## 🛡️ Security & Supply Chain
+
+These jobs run on every pull request, every push to `main` and weekly, regardless of which files changed: new CVEs are published every day, so an unchanged dependency can become vulnerable overnight. All of them are part of the required **CI result** check, and images are built only after they pass.
+
+| Job | Tooling | Fails when |
+| :--- | :--- | :--- |
+| Secret scan | Gitleaks over the **full git history** | A secret is found in any commit (a secret deleted later is still leaked) |
+| Dockerfile lint | Hadolint over all 11 Dockerfiles | A warning or error is reported |
+| Supply chain | CycloneDX SBOMs → license gate + Grype | A dependency has a denied license, or a vulnerability passes the risk policy below |
+| Image scan | Grype on every built image, **before it is pushed** | A vulnerability in the image (OS packages included) passes the risk policy |
+
+### SBOM
+
+One [CycloneDX](https://cyclonedx.org/) SBOM is generated per component from the resolved dependency tree, runtime scope only:
+
+| Component | Generator | File |
+| :--- | :--- | :--- |
+| Backend (all Maven modules) | `cyclonedx-maven-plugin` (aggregate) | `backend.cdx.json` |
+| Frontend | `@cyclonedx/cyclonedx-npm --omit dev` | `frontend.cdx.json` |
+| AI service | `cyclonedx-py environment` | `ai-service.cdx.json` |
+
+The SBOMs are both the input for the scans below and a deliverable: they are uploaded with the scan reports as the `supply-chain-reports` artifact (kept for 30 days).
+
+### Risk-based vulnerability gate (EPSS + CISA KEV)
+
+Blocking on CVSS severity alone does not work in practice: a typical Spring Boot service has dozens of "High" CVEs, most of which are never exploited, and teams end up ignoring the gate. `.github/scripts/vuln-gate.py` evaluates every Grype finding against two real-world exploitation signals:
+
+* **[CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)**: the catalog of vulnerabilities known to be exploited in the wild.
+* **[EPSS](https://www.first.org/epss/)**: the probability that a CVE will be exploited within the next 30 days.
+
+A finding **blocks** the pipeline when:
+
+* it is listed in CISA KEV, or
+* its severity is **High or Critical**, its EPSS score is **≥ 10%**, and a fixed version exists.
+
+Everything else is reported but does not block. The run **Summary** shows blocking findings and the top 10 non-blocking ones ranked by Grype's risk score, with the installed and fixed versions. Blocking findings also appear as error annotations.
+
+A finding that cannot be fixed yet can be accepted in `.grype.yaml` with a `reason`; accepted findings are counted in the summary so they stay visible.
+
+### License compliance
+
+`.github/scripts/license-gate.py` checks every Maven, npm and PyPI package in the SBOMs against `.github/license-policy.json`:
+
+* **Denied**: strong copyleft and non-open-source licenses (GPL, AGPL, SSPL, BUSL, CC-BY-NC, Commons Clause, Hippocratic). A package fails only if **every** license option in its SPDX expression is denied, so `MIT OR GPL-2.0` passes.
+* **Allowed**: weak copyleft (LGPL, EPL, MPL) and the GPL Classpath Exception used by the JDK-related libraries.
+* **Exceptions**: listed per package with a written reason (currently `react-leaflet`, Hippocratic-2.1).
+
+The summary shows violations, accepted exceptions, packages without license data, and the license distribution.
+
+### Secrets
+
+Gitleaks scans all commits, not only the current files. Findings that were reviewed and are known to be harmless (for example an expired development token) are listed by fingerprint in `.gitleaksignore`; any new finding fails the build. Reports are redacted, so the secret value is never printed in the logs.
+
+### Running the checks locally
+
+```bash
+./mvnw -q cyclonedx:makeAggregateBom                              # target/bom.json
+docker run --rm -v "$PWD:/repo" anchore/grype:v0.104.0 sbom:/repo/target/bom.json -o json > grype.json
+python3 .github/scripts/vuln-gate.py grype.json
+python3 .github/scripts/license-gate.py target/bom.json
+docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.28.0 git . --redact
+ruff check AI
+```
+
+---
+
+## 🐳 Container Images
+
+On every push to `main` all 11 images (Spring services, AI service, frontend) are built with Docker Buildx, scanned with Grype and only then pushed to GitHub Container Registry: `ghcr.io/<owner>/<service>`. An image that fails the vulnerability gate is never pushed.
+
+| Tag | When |
+| :--- | :--- |
+| `sha-<commit>` | Every build (first 12 characters of the commit SHA) |
+| `<pom version>-run<run number>` | After the system validation passes |
+| `latest` | After the system validation passes |
+
+Version tags are added to the already tested images without rebuilding them.
+
+---
+
+## ✅ System Validation
+
+The whole system is started with `docker compose` from the images built in the same run, then checked by:
+
+| Step | Script | Checks |
+| :--- | :--- | :--- |
+| Smoke test | `tests/ci/system-smoke.sh` | All services registered in Eureka, gateway health `UP`, gateway rejects requests without a token (401), frontend, AI service and incident-service respond, config-server serves the config repo |
+| Observability check | `tests/ci/observability-check.sh` | Every service exposes `/actuator/prometheus`, Prometheus scrapes all targets, gateway traffic shows up in `http_server_requests`, logs of every service reach Loki, a request can be traced by `X-Correlation-ID` |
+| Load test | `tests/ci/load-test.sh` | Runs the JMeter plan from `tests/load_tests` at CI scale; fails if errors ≥ 1%, p95 ≥ 1000 ms or p99 ≥ 3000 ms |
+
+Results are shown in the run **Summary** and uploaded as `observability-report` and `load-test-report` artifacts. If anything fails, container logs are uploaded as `system-smoke-logs`.
+
+To run the checks locally against a running system:
+
+```bash
+bash tests/ci/system-smoke.sh
+bash tests/ci/observability-check.sh   # needs: docker compose up -d prometheus loki alloy
+bash tests/ci/load-test.sh             # macOS: LOAD_HOST=host.docker.internal JMETER_NETWORK=bridge
+```
+
+---
+
 # 🤖 Artificial Intelligence Module
 
 The AI module is implemented as a separate Python-based service located in the dedicated `AI/` directory. Unlike the remaining backend components, which are implemented as Spring Boot microservices, the AI module focuses on machine learning inference and optimization algorithms.

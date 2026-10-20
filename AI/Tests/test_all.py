@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from AI.Domain.Algorithms.VRPTW import Customer
 from AI.Orchestration.request_manager import RequestManager, Request
@@ -78,7 +78,6 @@ def test_traffic(manager):
 # =========================================================
 def test_vrp(manager):
 
-    from AI.Domain.Algorithms.VRPTW import Customer
 
     n = 10
 
