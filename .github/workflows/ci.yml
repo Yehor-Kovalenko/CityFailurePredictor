@@ -393,7 +393,7 @@ jobs:
   prepare:
     name: Prepare image names and version
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, ai, frontend, secret-scan, dockerfile-lint, supply-chain]
+    needs: [backend, ai, frontend, secret-scan, dockerfile-lint, supply-chain, sonarqube-scan]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -674,12 +674,13 @@ jobs:
   # Sonarqube
   # ---------------------------------------------------------------
   sonarqube-scan:
-    name: SonarQube Scan
-    needs: [ changes, backend, ai, frontend]
+    name: SonarQube scan & Quality Gate
+    needs: [ changes, backend, ai, frontend ]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Preparation
+      - name: Checkout repository (full history)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
@@ -703,22 +704,31 @@ jobs:
         with:
           name: frontend-test-reports
           path: frontend
+
+      - name: Read version from pom.xml
+        id: version
+        run: |
+          echo "version=$(python3 -c "
+          import xml.etree.ElementTree as ET
+          root = ET.parse('pom.xml').getroot()
+          print(root.find('{http://maven.apache.org/POM/4.0.0}version').text)")" >> "$GITHUB_OUTPUT"
+
       - name: Cache SonarQube packages
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-      - name: SQ Scan
+
+      - name: Scan and wait for Quality Gate
         uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      - name: Perform Quality Gate check
-        uses: sonarsource/sonarqube-quality-gate-action@master
         with:
-          pollingTimeoutSec: 300
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          args: >
+            -Dsonar.projectVersion=${{ steps.version.outputs.version }}
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
 
   # Single, stable status check for branch protection ("CI result"). Component jobs skipped by the
   # path filter count as success; any failed or cancelled job fails this check and blocks the merge.
