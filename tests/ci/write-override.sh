@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Generuje plik override dla docker compose: każdy zbudowany serwis
-# działa z obrazu z rejestru zamiast budowania ze źródeł.
+# Generates a docker compose override file: every built service
+# runs from the registry image instead of being built from source.
 # Usage: tests/ci/write-override.sh <owner> <tag> [output]
 set -euo pipefail
 
-OWNER="${1:?podaj właściciela rejestru (małymi literami)}"
-TAG="${2:?podaj tag obrazu, np. sha-abc123def456}"
+OWNER="${1:?registry owner (lowercase) is required}"
+TAG="${2:?image tag is required, e.g. sha-abc123def456}"
 OUT="${3:-ci-override.yml}"
 
-# Musi odpowiadać macierzy budowania w .github/workflows/ci.yml
+# Must match the build matrix in .github/workflows/ci.yml
 SERVICES=(
   service-registry
   config-server
@@ -31,4 +31,4 @@ SERVICES=(
   done
 } > "$OUT"
 
-echo "zapisano $OUT (${#SERVICES[@]} serwisów, tag $TAG)"
+echo "wrote $OUT (${#SERVICES[@]} services, tag $TAG)"
