@@ -162,8 +162,7 @@ The pipeline lives in `.github/workflows`. We use short-lived feature branches m
 
 | Workflow | Trigger | Purpose |
 | :--- | :--- | :--- |
-| `ci.yml` | PR to `main`, push to `main`, weekly (Mon 05:00 UTC), manual | Build, tests, security checks, container images, system validation |
-| `sonarq.yml` | PR to `main`, push to `main`, manual | Static code analysis with Quality Gate |
+| `ci.yml` | PR to `main`, push to `main`, weekly (Mon 05:00 UTC), manual | Build, tests, static analysis with Quality Gate, security checks, container images, system validation |
 | `jira-*.yml` | Branch created, PR opened, PR merged | Moves Jira issues: In Progress → Code Review → Done |
 
 ```text
@@ -171,13 +170,13 @@ Pull request to main               Push to main (merge)
         ↓                                  ↓
 Detect changed components          Backend · AI · Frontend (all)
         ↓                          Secret scan · Dockerfile lint · Supply chain
-Backend · AI · Frontend                    ↓
-Secret scan · Dockerfile lint      Build image → scan image → push (sha-<commit>)
-Supply chain                               ↓
-        ↓                          Whole-system smoke test
-CI result
-                                           ↓
-                                   Observability check
+Backend · AI · Frontend            SonarQube Quality Gate
+Secret scan · Dockerfile lint              ↓
+Supply chain                       Build image → scan image → push (sha-<commit>)
+        ↓                                  ↓
+SonarQube Quality Gate             Whole-system smoke test
+        ↓                                  ↓
+CI result                          Observability check
                                            ↓
                                    Load test (JMeter)
                                            ↓
@@ -202,7 +201,10 @@ CI result
 
 ## 🔍 Code Quality (SonarQube)
 
-Every PR and push to `main` is analysed by SonarQube Cloud (`sonar-project.properties`). A second job waits for the **Quality Gate** result and fails the workflow if the gate is not passed.
+Every PR and push to `main` is analysed by SonarQube Cloud (`sonar-project.properties`) in the `sonarqube-scan` job of `ci.yml`. It runs after the test jobs and uploads their coverage reports (JaCoCo, pytest-cov, Vitest lcov) with the analysis. The scanner waits for the **Quality Gate** result (`sonar.qualitygate.wait`) and fails the job if the gate is not passed:
+
+* on a pull request the **CI result** check fails, so the PR cannot be merged;
+* on `main` no image is built or published, because `prepare` depends on `sonarqube-scan`.
 
 ---
 
@@ -274,7 +276,7 @@ ruff check AI
 
 ## 🐳 Container Images
 
-On every push to `main` all 11 images (Spring services, AI service, frontend) are built with Docker Buildx, scanned with Grype and only then pushed to GitHub Container Registry: `ghcr.io/<owner>/<service>`. An image that fails the vulnerability gate is never pushed.
+On every push to `main` all 11 images (Spring services, AI service, frontend) are built with Docker Buildx, scanned with Grype and only then pushed to GitHub Container Registry: `ghcr.io/<owner>/<service>`. Images are built only after the tests, the security checks and the SonarQube Quality Gate pass. An image that fails the vulnerability gate is never pushed.
 
 | Tag | When |
 | :--- | :--- |
