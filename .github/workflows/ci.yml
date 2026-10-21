@@ -664,7 +664,7 @@ jobs:
                    data-ingestion-service ai-service decision-service reporting-service \
                    notification-service frontend; do
             SRC="ghcr.io/${OWNER}/${s}:${SRC_TAG}"
-            docker buildx imagetools create \
+            docker buildx imagetools create --prefer-index=false \
               -t "ghcr.io/${OWNER}/${s}:${VERSION}-run${RUN}" \
               -t "ghcr.io/${OWNER}/${s}:latest" \
               "$SRC"
