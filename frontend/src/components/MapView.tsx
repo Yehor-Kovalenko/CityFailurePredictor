@@ -1,8 +1,11 @@
-import { useRef, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import {useEffect, useRef, useState} from "react";
+import {Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents,} from "react-leaflet";
 import L from "leaflet";
-import { Incident } from "../types";
-import { INCIDENT_TYPE_ICONS } from "../constants";
+import {Incident} from "../types";
+import {DEFAULT_MAP_CENTER, INCIDENT_TYPE_ICONS} from "../constants";
+import {useGeolocation} from "../hooks/useGeolocation";
+import {filterWithinRadius, LatLng} from "../utils/geo";
+import {NearbyPanel} from "./NearbyPanel";
 
 delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -20,13 +23,32 @@ interface MapViewProps {
   onSelectIncident: (incident: Incident | null) => void;
 }
 
+interface MapContentProps extends MapViewProps {
+  area: LatLng | null;
+  areaKey: string;
+  radiusKm: number;
+  isUserPosition: boolean;
+  onMapClick?: (point: LatLng) => void;
+}
+
 function MapContent({
   incidents,
   selectedIncident,
   onSelectIncident,
-}: MapViewProps) {
+  area,
+  areaKey,
+  radiusKm,
+  isUserPosition,
+  onMapClick,
+}: MapContentProps) {
   const map = useMap();
   const markerRefs = useRef<Record<string, L.Marker>>({});
+  const areaRef = useRef(area);
+  areaRef.current = area;
+
+  useMapEvents({
+    click: (e) => onMapClick?.({ lat: e.latlng.lat, lng: e.latlng.lng }),
+  });
 
   useEffect(() => {
     const refreshMapSize = () => map.invalidateSize({ pan: false });
@@ -41,7 +63,14 @@ function MapContent({
   }, [map]);
 
   useEffect(() => {
-    if (incidents.length > 0) {
+    const current = areaRef.current;
+    if (current) {
+      map.fitBounds(L.latLng(current.lat, current.lng).toBounds(radiusKm * 2000));
+    }
+  }, [areaKey, radiusKm, map]);
+
+  useEffect(() => {
+    if (!areaRef.current && incidents.length > 0) {
       const lats = incidents.map((i) => parseFloat(i.coordinates.x));
       const lngs = incidents.map((i) => parseFloat(i.coordinates.y));
       const maxLat = Math.max(...lats);
@@ -95,6 +124,20 @@ function MapContent({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution="&copy; OpenStreetMap contributors"
       />
+      {area && (
+        <>
+          <Circle
+            center={[area.lat, area.lng]}
+            radius={radiusKm * 1000}
+            pathOptions={{ color: "#3b82f6", fillOpacity: 0.08, weight: 1 }}
+          />
+          <CircleMarker
+            center={[area.lat, area.lng]}
+            radius={isUserPosition ? 8 : 5}
+            pathOptions={{ color: "#ffffff", fillColor: "#2563eb", fillOpacity: 1, weight: 2 }}
+          />
+        </>
+      )}
       {incidents.slice(0, 8).map((incident) => {
         const lat = parseFloat(incident.coordinates.x);
         const lng = parseFloat(incident.coordinates.y);
@@ -159,14 +202,47 @@ export function MapView({
   selectedIncident,
   onSelectIncident,
 }: MapViewProps) {
-  // Default center (Warsaw area)
-  const defaultCenter: [number, number] = [51.76, 19.46];
+  const geo = useGeolocation();
+  const [radiusKm, setRadiusKm] = useState(3);
+  const [manualArea, setManualArea] = useState<LatLng | null>(null);
+
+  const usesGps = geo.consent === "granted";
+  const area = usesGps ? geo.position : manualArea;
+  const areaKey = usesGps
+    ? geo.position ? "gps" : "none"
+    : manualArea ? `${manualArea.lat},${manualArea.lng}` : "none";
+  const visibleIncidents = area
+    ? filterWithinRadius(incidents, area, radiusKm)
+    : incidents;
 
   return (
-    <div className="h-full w-full rounded-xl border border-dark-700 overflow-hidden">
-      <MapContainer center={defaultCenter} zoom={13} style={{ height: "100%", width: "100%" }}>
-        <MapContent incidents={incidents} selectedIncident={selectedIncident} onSelectIncident={onSelectIncident}/>
+    <div className="relative h-full w-full rounded-xl border border-dark-700 overflow-hidden">
+      <MapContainer center={DEFAULT_MAP_CENTER} zoom={13} style={{ height: "100%", width: "100%" }}>
+        <MapContent
+          incidents={visibleIncidents}
+          selectedIncident={selectedIncident}
+          onSelectIncident={onSelectIncident}
+          area={area}
+          areaKey={areaKey}
+          radiusKm={radiusKm}
+          isUserPosition={usesGps}
+          onMapClick={geo.consent === "denied" ? setManualArea : undefined}
+        />
       </MapContainer>
+      <NearbyPanel
+        consent={geo.consent}
+        hasArea={area !== null}
+        visibleCount={visibleIncidents.length}
+        radiusKm={radiusKm}
+        error={geo.error && geo.consent !== "unknown" ? geo.error : null}
+        onRadiusChange={setRadiusKm}
+        onGrant={() => {
+          setManualArea(null);
+          geo.grant();
+        }}
+        onDeny={geo.deny}
+        onClearArea={() => setManualArea(null)}
+      />
     </div>
   );
 }

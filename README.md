@@ -310,6 +310,33 @@ bash tests/ci/load-test.sh             # macOS: LOAD_HOST=host.docker.internal J
 
 ---
 
+# 🏭 Industry 4.0 Features
+
+Industry 4.0 elements implemented in the project. Requirement IDs refer to the *Industry 4.0 requirements* document.
+
+| Area | Requirements | Status |
+| :--- | :--- | :--- |
+| Geolocation | G1–G4 | ✅ Implemented |
+| Mobile interface (PWA) | M1–M4 | ⏳ Planned |
+| Cybersecurity | C1–C6 | ⏳ Planned |
+| Artificial intelligence | A1–A4 | ⏳ Planned |
+| Data analysis and IoT | D1–D4 | ⏳ Planned |
+
+## 📍 Geolocation (G1–G4)
+
+Context-aware incident map based on the browser Geolocation API, Leaflet and OpenStreetMap tiles.
+
+- **G1** – after consent, the map shows the user's position and only incidents within a selectable radius (1–10 km).
+- **G2** – the incident form fills in the location from GPS; the pin can be corrected on a small map (click or drag).
+- **G3** – only the consent decision is stored (`localStorage`, key `city-failure-predictor.geo-consent`); the position stays in memory and is sent to the server only as part of an incident report. Consent can be withdrawn at any time ("Stop using location").
+- **G4** – without consent, clicking the map selects the area to filter incidents.
+
+Code: `frontend/src/hooks/useGeolocation.ts`, `frontend/src/utils/geo.ts`, `frontend/src/components/NearbyPanel.tsx`, `frontend/src/components/LocationPicker.tsx`.
+
+> The browser exposes GPS only over HTTPS or `localhost`. For local testing, a location can be simulated in Chrome DevTools → *Sensors*.
+
+---
+
 # 🤖 Artificial Intelligence Module
 
 The AI module is implemented as a separate Python-based service located in the dedicated `AI/` directory. Unlike the remaining backend components, which are implemented as Spring Boot microservices, the AI module focuses on machine learning inference and optimization algorithms.
