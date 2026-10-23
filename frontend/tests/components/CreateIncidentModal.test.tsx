@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import {render, screen, waitFor} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { CreateIncidentModal } from "@/components/CreateIncidentModal";
+import {afterEach, describe, expect, it, vi} from "vitest";
+import {CreateIncidentModal} from "@/components/CreateIncidentModal";
 
 const { createIncident } = vi.hoisted(() => ({
   createIncident: vi.fn(),
@@ -65,6 +65,48 @@ describe("CreateIncidentModal", () => {
     expect(await screen.findByText("Failed to create incident")).toBeInTheDocument();
     expect(onSuccess).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("fills the location from GPS on request", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: (ok: PositionCallback) =>
+          ok({ coords: { latitude: 51.7592341, longitude: 19.4560123 } } as GeolocationPosition),
+      },
+    });
+    renderModal();
+
+    await user.click(screen.getByRole("button", { name: "Use my location" }));
+
+    expect(screen.getByPlaceholderText("51.5074")).toHaveValue(51.759234);
+    expect(screen.getByPlaceholderText("19.4568")).toHaveValue(19.456012);
+    vi.unstubAllGlobals();
+  });
+
+  it("auto-fills the location when the user has already consented", async () => {
+    localStorage.setItem("city-failure-predictor.geo-consent", "granted");
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: (ok: PositionCallback) =>
+          ok({ coords: { latitude: 51.75, longitude: 19.45 } } as GeolocationPosition),
+      },
+    });
+    renderModal();
+
+    await waitFor(() => expect(screen.getByPlaceholderText("51.5074")).toHaveValue(51.75));
+    vi.unstubAllGlobals();
+  });
+
+  it("shows a message when the location cannot be read", async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    await user.click(screen.getByRole("button", { name: "Use my location" }));
+
+    expect(await screen.findByText(/not supported/)).toBeInTheDocument();
   });
 
   it("closes on cancel", async () => {

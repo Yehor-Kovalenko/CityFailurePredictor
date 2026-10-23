@@ -29,3 +29,5 @@ export const INCIDENT_STATUS_ICONS: Record<IncidentStatus, string> = {
   IN_PROGRESS: "🟡",
   RESOLVED: "🟢",
 };
+
+export const DEFAULT_MAP_CENTER: [number, number] = [51.76, 19.46];

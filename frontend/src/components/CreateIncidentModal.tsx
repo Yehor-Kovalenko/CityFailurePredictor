@@ -1,10 +1,13 @@
-import { useState } from "react";
-import { X } from "lucide-react";
-import { CreateIncidentRequest, Coordinates, IncidentType } from "../types";
+import {useEffect, useState} from "react";
+import {Crosshair, Map as MapIcon, X} from "lucide-react";
+import {Coordinates, CreateIncidentRequest, IncidentType} from "../types";
 import {incidentService} from "../services/api";
 import {publish} from "@/utils/eventBroker.ts";
 import {shortenText} from "@/utils/formatters.ts";
 import {getErrorMessage} from "@/utils/errors.ts";
+import {getCurrentPosition, LatLng} from "@/utils/geo.ts";
+import {readGeoConsent} from "@/hooks/useGeolocation.ts";
+import {LocationPicker} from "./LocationPicker";
 
 interface CreateIncidentModalProps {
   isOpen: boolean;
@@ -36,6 +39,59 @@ export function CreateIncidentModal({
     crs: "EPSG:4326",
     incidentType: "FIRE" as IncidentType,
   });
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  const setLocation = (point: LatLng) => {
+    setFormData((prev) => ({
+      ...prev,
+      x: point.lat.toFixed(6),
+      y: point.lng.toFixed(6),
+    }));
+  };
+
+  const locateMe = async () => {
+    setLocating(true);
+    setLocationError(null);
+    try {
+      setLocation(await getCurrentPosition());
+    } catch (err) {
+      setLocationError(
+        err instanceof Error ? err.message : "Unable to determine your location",
+      );
+    } finally {
+      setLocating(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen || readGeoConsent() !== "granted") {
+      return;
+    }
+    let cancelled = false;
+    getCurrentPosition()
+      .then((point) => {
+        if (!cancelled) {
+          setFormData((prev) =>
+            prev.x || prev.y
+              ? prev
+              : { ...prev, x: point.lat.toFixed(6), y: point.lng.toFixed(6) },
+          );
+        }
+      })
+      .catch(() => {
+        // Manual entry stays available when GPS is unavailable
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
+  const pickedPoint: LatLng | null =
+    formData.x && formData.y
+      ? { lat: parseFloat(formData.x), lng: parseFloat(formData.y) }
+      : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +123,7 @@ export function CreateIncidentModal({
         crs: "EPSG:4326",
         incidentType: "FIRE",
       });
+      setIsPickerOpen(false);
       publish('event_feed', {
         title: request.incidentTitle,
         summary: shortenText(request.incidentSummary, 25),
@@ -84,7 +141,7 @@ export function CreateIncidentModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100000]">
-      <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 max-h-[95vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-semibold text-black">Create New Incident</h2>
           <button
@@ -158,11 +215,11 @@ export function CreateIncidentModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                X Coordinate
+                Latitude (X)
               </label>
               <input
                 type="number"
-                step="0.0001"
+                step="any"
                 required
                 value={formData.x}
                 onChange={(e) =>
@@ -174,11 +231,11 @@ export function CreateIncidentModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Y Coordinate
+                Longitude (Y)
               </label>
               <input
                 type="number"
-                step="0.0001"
+                step="any"
                 required
                 value={formData.y}
                 onChange={(e) =>
@@ -189,6 +246,34 @@ export function CreateIncidentModal({
               />
             </div>
           </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void locateMe()}
+              disabled={locating}
+              className="flex flex-1 items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 disabled:opacity-50"
+            >
+              <Crosshair size={16} />
+              {locating ? "Locating..." : "Use my location"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsPickerOpen(!isPickerOpen)}
+              className="flex flex-1 items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              <MapIcon size={16} />
+              {isPickerOpen ? "Hide map" : "Adjust on map"}
+            </button>
+          </div>
+
+          {locationError && (
+            <p className="text-sm text-red-600">{locationError}</p>
+          )}
+
+          {isPickerOpen && (
+            <LocationPicker value={pickedPoint} onChange={setLocation} />
+          )}
 
           <div className="flex gap-3 pt-4">
             <button
