@@ -28,15 +28,20 @@ export function readGeoConsent(now: number = Date.now()): GeoConsent {
     if (raw === null) {
         return "unknown";
     }
-    try {
-        const stored: unknown = JSON.parse(raw);
-        if (isValidConsent(stored, now)) {
-            return stored.decision;
-        }
-    } catch {
+    const stored = parseJson(raw);
+    if (isValidConsent(stored, now)) {
+        return stored.decision;
     }
     clearGeoConsent();
     return "unknown";
+}
+
+function parseJson(raw: string): unknown {
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
 }
 
 export function storeGeoConsent(decision: GeoDecision): void {
