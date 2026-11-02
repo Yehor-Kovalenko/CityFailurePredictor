@@ -4,8 +4,8 @@ import {afterEach, describe, expect, it, vi} from "vitest";
 import {MapView} from "@/components/MapView";
 import {Incident} from "@/types";
 import {stubLeafletLayout} from "../leafletLayout";
+import {storeGeoConsent} from "@/services/geoConsent";
 
-const CONSENT_KEY = "city-failure-predictor.geo-consent";
 
 function incidentAt(id: string, lat: number, lng: number, status: Incident["status"] = "OPEN"): Incident {
     return {
@@ -83,7 +83,7 @@ describe("MapView", () => {
 
     it("filters around a point picked on the map when consent is refused", async () => {
         const user = userEvent.setup();
-        localStorage.setItem(CONSENT_KEY, "denied");
+        storeGeoConsent("denied");
         stubLeafletLayout();
         const {container, rerender} = renderMap({incidents: []});
 

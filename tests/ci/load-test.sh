@@ -5,14 +5,20 @@
 # are checked against its statistics.json. Crossing them fails the script.
 # Assumes that the system is already running (docker compose up --wait).
 #
+# The plan calls incident-service directly (the gateway needs a JWT the plan does not send).
+# The service is reachable only inside the compose network and only over mutual TLS, so
+# JMeter runs in that network and presents the gateway's client certificate.
+#
 # Usage: tests/ci/load-test.sh
 # Env:   LOAD_REPORT_DIR (default: load-test-report),
-#        LOAD_HOST / LOAD_PORT / LOAD_INCIDENTS_PATH (default: incident-service directly,
-#          localhost:8082/incidents; the gateway needs a JWT the plan does not send),
+#        LOAD_PROTOCOL / LOAD_HOST / LOAD_PORT / LOAD_INCIDENTS_PATH
+#          (default: https://incident-service:8082/incidents),
 #        LOAD_THREADS (20), LOAD_RAMP_UP (s, 10), LOAD_LOOPS (10),
 #        MAX_ERROR_PCT (1), MAX_P95_MS (1000), MAX_P99_MS (3000),
-#        JMETER_NETWORK (docker network for JMeter, default: host)
+#        JMETER_NETWORK (docker network for JMeter, default: the compose network),
+#        TLS_KEYSTORE_PASSWORD (password of the generated keystores, default: changeit)
 set -euo pipefail
+source "$(dirname "$0")/lib/in-network.sh"
 # Decimal point in printf regardless of the runner locale
 export LC_NUMERIC=C
 
@@ -30,18 +36,28 @@ rm -rf "$REPORT_DIR"
 mkdir -p "$REPORT_DIR"
 REPORT_DIR="$(cd "$REPORT_DIR" && pwd)"
 
+KEYSTORE_DIR="$(mktemp -d)"
+trap 'rm -rf "$KEYSTORE_DIR"' EXIT
+docker cp "api-gateway:${CERTS_DIR}/api-gateway.p12" "$KEYSTORE_DIR/client.p12" > /dev/null
+chmod 644 "$KEYSTORE_DIR/client.p12"
+
 docker run --rm \
-  --network "${JMETER_NETWORK:-host}" \
+  --network "${JMETER_NETWORK:-$(compose_network)}" \
   --user "$(id -u):$(id -g)" \
   -v "$PLAN_DIR:/plan:ro" \
   -v "$REPORT_DIR:/report" \
+  -v "$KEYSTORE_DIR:/certs:ro" \
   -w /report \
   "$JMETER_IMAGE" -n \
   -t "/plan/$PLAN" \
   -l /report/results.jtl \
   -j /report/jmeter.log \
   -e -o /report/html \
-  -Jhost="${LOAD_HOST:-localhost}" \
+  -Djavax.net.ssl.keyStore=/certs/client.p12 \
+  -Djavax.net.ssl.keyStoreType=PKCS12 \
+  -Djavax.net.ssl.keyStorePassword="${TLS_KEYSTORE_PASSWORD:-changeit}" \
+  -Jprotocol="${LOAD_PROTOCOL:-https}" \
+  -Jhost="${LOAD_HOST:-incident-service}" \
   -Jport="${LOAD_PORT:-8082}" \
   -JincidentsPath="${LOAD_INCIDENTS_PATH:-/incidents}" \
   -Jthreads="${LOAD_THREADS:-20}" \

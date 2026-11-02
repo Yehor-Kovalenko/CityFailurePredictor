@@ -19,15 +19,18 @@ loki.process "enrich" {
       service       = "",
       level         = "",
       message       = "",
+      securityEvent = "",
     }
   }
 
-  // Promote fields to Loki labels (indexed, filterable)
+  // Promote fields to Loki labels (indexed, filterable).
+  // securityEvent is set only on audit lines (logins, access denials, rate limiting)
   stage.labels {
     values = {
       correlationId = "",
       service       = "",
       level         = "",
+      securityEvent = "",
     }
   }
 }

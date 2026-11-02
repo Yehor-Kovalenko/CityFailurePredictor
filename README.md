@@ -8,6 +8,14 @@ docker compose down
 docker compose up -d --build
 ```
 
+Only the entry points are published on the host: the frontend (http://localhost:3000), the API gateway
+(http://localhost:9191) and Grafana (http://localhost:3001). Databases, Kafka, Eureka, the config-server,
+Prometheus, Loki and the services stay inside the docker network. For local debugging, publish them with:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.debug-ports.yml up -d
+```
+
 ---
 
 ### How to prepare ConfigServer for the first time
@@ -23,7 +31,7 @@ In order to access the ConfigServer config registry, ONLY ONCE you need to do th
 
 Documentation from all services are aggregated at the Gateway service. So there is two ways:
 1. Open base url of the gateway service and append `/swagger-ui.html`
-2. Open base url of the desired service and append `/swagger-ui.html`
+2. Open `/<service-name>/swagger-ui.html` through the gateway (the services are not published on the host)
 
 Enjoy your Swagger endpoint documentation!
 
@@ -44,9 +52,11 @@ This project includes a full **observability stack** based on:
 
 | Service        | URL                                       |
 |---------------|-------------------------------------------|
-| Prometheus    | http://localhost:9090                     |
 | Grafana       | http://localhost:3001                     |
-| Auth metrics  | http://localhost:8083/actuator/prometheus |
+| Prometheus    | http://localhost:9090 (with `docker-compose.debug-ports.yml`) |
+| Gateway metrics | http://localhost:9191/actuator/prometheus |
+
+The backend services expose their metrics on the management port `8081`, reachable only inside the docker network.
 
 ---
 
@@ -294,10 +304,11 @@ The whole system is started with `docker compose` from the images built in the s
 
 | Step | Script | Checks |
 | :--- | :--- | :--- |
-| Smoke test | `tests/ci/system-smoke.sh` | All services registered in Eureka, gateway health `UP`, gateway rejects requests without a token (401), frontend, AI service and incident-service respond, config-server serves the config repo |
-| Observability check | `tests/ci/observability-check.sh` | Every service exposes `/actuator/prometheus`, Prometheus scrapes all targets, gateway traffic shows up in `http_server_requests`, logs of every service reach Loki, a request can be traced by `X-Correlation-ID` |
-| Load test | `tests/ci/load-test.sh` | Runs the JMeter plan from `tests/load_tests` at CI scale; fails if errors ≥ 1%, p95 ≥ 1000 ms or p99 ≥ 3000 ms |
+| Smoke test | `tests/ci/system-smoke.sh` | All services registered in Eureka, gateway health `UP`, gateway rejects requests without a token (401), frontend, AI service and incident-service respond, config-server serves the config repo, internal ports are not published (C3), incident-service accepts only mTLS clients (C5), the gateway rate limits a burst and counts security events (C4) |
+| Observability check | `tests/ci/observability-check.sh` | Every service exposes `/actuator/prometheus`, Prometheus scrapes all targets, gateway traffic shows up in `http_server_requests`, logs of every service reach Loki, a request can be traced by `X-Correlation-ID`, security events reach Loki |
+| Load test | `tests/ci/load-test.sh` | Runs the JMeter plan from `tests/load_tests` at CI scale against incident-service over mTLS; fails if errors ≥ 1%, p95 ≥ 1000 ms or p99 ≥ 3000 ms |
 
+Checks of internal components run from a throwaway container in the compose network (`tests/ci/lib/in-network.sh`).
 Results are shown in the run **Summary** and uploaded as `observability-report` and `load-test-report` artifacts. If anything fails, container logs are uploaded as `system-smoke-logs`.
 
 To run the checks locally against a running system:
@@ -305,7 +316,7 @@ To run the checks locally against a running system:
 ```bash
 bash tests/ci/system-smoke.sh
 bash tests/ci/observability-check.sh   # needs: docker compose up -d prometheus loki alloy
-bash tests/ci/load-test.sh             # macOS: LOAD_HOST=host.docker.internal JMETER_NETWORK=bridge
+bash tests/ci/load-test.sh
 ```
 
 ---
@@ -318,7 +329,7 @@ Industry 4.0 elements implemented in the project. Requirement IDs refer to the *
 | :--- | :--- | :--- |
 | Geolocation | G1–G4 | ✅ Implemented |
 | Mobile interface (PWA) | M1–M4 | ⏳ Planned |
-| Cybersecurity | C1–C6 | ⏳ Planned |
+| Cybersecurity | C1–C6 | ✅ Implemented |
 | Artificial intelligence | A1–A4 | ⏳ Planned |
 | Data analysis and IoT | D1–D4 | ⏳ Planned |
 
@@ -328,12 +339,18 @@ Context-aware incident map based on the browser Geolocation API, Leaflet and Ope
 
 - **G1** – after consent, the map shows the user's position and only incidents within a selectable radius (1–10 km).
 - **G2** – the incident form fills in the location from GPS; the pin can be corrected on a small map (click or drag).
-- **G3** – only the consent decision is stored (`localStorage`, key `city-failure-predictor.geo-consent`); the position stays in memory and is sent to the server only as part of an incident report. Consent can be withdrawn at any time ("Stop using location").
+- **G3** – only the consent decision is stored (`localStorage`, key `city-failure-predictor.geo-consent`, with the consent version and date); the position stays in memory and is sent to the server only as the location of a submitted incident report. Consent can be withdrawn at any time ("Stop using location"), expires after 180 days, is asked again when the consent text changes (`GEO_CONSENT_VERSION`) and is forgotten on logout, so the next user of a shared device is asked again.
 - **G4** – without consent, clicking the map selects the area to filter incidents.
 
-Code: `frontend/src/hooks/useGeolocation.ts`, `frontend/src/utils/geo.ts`, `frontend/src/components/NearbyPanel.tsx`, `frontend/src/components/LocationPicker.tsx`.
+Code: `frontend/src/hooks/useGeolocation.ts`, `frontend/src/services/geoConsent.ts`, `frontend/src/utils/geo.ts`, `frontend/src/components/NearbyPanel.tsx`, `frontend/src/components/LocationPicker.tsx`.
 
 > The browser exposes GPS only over HTTPS or `localhost`. For local testing, a location can be simulated in Chrome DevTools → *Sensors*.
+
+## 🔐 Cybersecurity (C3–C5)
+
+- **C3** – roles are enforced on the API gateway (`RouteAuthorizationService`). The services are not published on the host, so the gateway cannot be bypassed; `docker-compose.debug-ports.yml` publishes the internal ports for local debugging only.
+- **C4** – the gateway records every rejected request (`AUTHENTICATION_FAILED` 401, `ACCESS_DENIED` 403, `RATE_LIMITED` 429) as a structured log line and in `gateway_security_events_total{type}`; auth-service records `LOGIN_SUCCESS`, `LOGIN_FAILURE` and `ROLE_CHANGED` (failed logins also in `auth_login_failure_total`). In Loki the events carry the `securityEvent` label, e.g. `{securityEvent="ACCESS_DENIED"}`; the *API Gateway* Grafana dashboard shows them. Rate limiting is a per-client-IP token bucket on the gateway (`app.security.rate-limit.*`: burst 60, 20 requests/s), applied before token validation.
+- **C5** – traffic from the gateway to the services and between services (Feign) uses mutual TLS. At startup `certs-init` (`security/tls/generate-certs.sh`) creates an internal CA and one certificate per service (CN/SAN = service name); the CA key stays in a volume only that container mounts. With the `mtls` profile (`security/tls/config/`) the services accept only clients with a certificate from that CA, register their https port in Eureka and verify the peer's host name. Health checks and metrics use the separate management port `8081` inside the network. Eureka, the config-server and Kafka still use plaintext inside the docker network.
 
 ---
 

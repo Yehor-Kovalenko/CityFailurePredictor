@@ -1,6 +1,7 @@
 import axios, {AxiosInstance} from "axios";
 import {AuthResponse, AuthSession} from "../types";
 import {clearStoredSession, getStoredSession, saveStoredSession, toSession,} from "./authStorage";
+import {clearGeoConsent} from "./geoConsent";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:9191";
 const LOGIN_TIMEOUT_MS = 2 * 60 * 1000;
@@ -72,6 +73,7 @@ class AuthService {
 
     async logout(): Promise<void> {
         clearStoredSession();
+        clearGeoConsent();
 
         try {
             await this.api.post(

@@ -22,6 +22,7 @@ public class OAuthService {
     private final UserRepository userRepository;
     private final JwtService jwtService;
     private final MeterRegistry registry;
+    private final SecurityAuditLogger securityAudit;
 
     private final Timer loginTimer;
     private final String adminEmailsRaw;
@@ -29,11 +30,13 @@ public class OAuthService {
     public OAuthService(UserRepository userRepository,
                         JwtService jwtService,
                         MeterRegistry registry,
+                        SecurityAuditLogger securityAudit,
                         @Value("${app.auth.admin-emails:}") String adminEmailsRaw) {
 
         this.userRepository = userRepository;
         this.jwtService = jwtService;
         this.registry = registry;
+        this.securityAudit = securityAudit;
         this.adminEmailsRaw = adminEmailsRaw;
 
         this.loginTimer = Timer.builder("auth.login.duration")
@@ -70,11 +73,13 @@ public class OAuthService {
                 registry.counter("auth.login.success").increment();
 
                 String token = jwtService.generateToken(user);
+                securityAudit.loginSucceeded(user);
 
                 return new AuthResult(user, token);
 
             } catch (Exception e) {
                 registry.counter("auth.login.failure", "reason", "exception").increment();
+                securityAudit.loginFailed(e.getMessage());
                 throw e;
             }
         });

@@ -33,7 +33,8 @@ export function NearbyPanel({
           <p className="font-semibold text-white">Show incidents near you?</p>
           <p className="mt-1 text-xs text-gray-400">
             Your position is used only in this browser to filter the map. It is
-            never sent to the server or saved.
+            never sent to the server or saved. You can withdraw consent at any
+            time; your choice is remembered for 180 days.
           </p>
           <div className="mt-3 flex gap-2">
             <button

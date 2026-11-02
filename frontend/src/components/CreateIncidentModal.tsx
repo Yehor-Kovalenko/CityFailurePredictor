@@ -6,7 +6,7 @@ import {publish} from "@/utils/eventBroker.ts";
 import {shortenText} from "@/utils/formatters.ts";
 import {getErrorMessage} from "@/utils/errors.ts";
 import {getCurrentPosition, LatLng} from "@/utils/geo.ts";
-import {readGeoConsent} from "@/hooks/useGeolocation.ts";
+import {readGeoConsent} from "@/services/geoConsent.ts";
 import {LocationPicker} from "./LocationPicker";
 
 interface CreateIncidentModalProps {
@@ -266,6 +266,12 @@ export function CreateIncidentModal({
               {isPickerOpen ? "Hide map" : "Adjust on map"}
             </button>
           </div>
+
+          <p className="text-xs text-gray-500">
+            Your GPS position is used only to fill in this report. Only the
+            incident location you submit is stored, so adjust it if it should
+            not be your exact position.
+          </p>
 
           {locationError && (
             <p className="text-sm text-red-600">{locationError}</p>

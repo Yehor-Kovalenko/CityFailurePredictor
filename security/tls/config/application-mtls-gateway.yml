@@ -1,0 +1,11 @@
+spring:
+  cloud:
+    gateway:
+      httpclient:
+        ssl:
+          key-store: file:${TLS_CERTS_DIR}/api-gateway.p12
+          key-store-type: PKCS12
+          key-store-password: ${TLS_KEYSTORE_PASSWORD}
+          key-password: ${TLS_KEYSTORE_PASSWORD}
+          trusted-x509-certificates:
+            - ${TLS_CERTS_DIR}/ca.crt

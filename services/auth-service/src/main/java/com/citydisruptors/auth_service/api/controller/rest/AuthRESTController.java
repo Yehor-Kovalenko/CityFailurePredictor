@@ -67,10 +67,11 @@ public class AuthRESTController {
 
     @PatchMapping("/users/role")
     public UserResponse updateUserRole(
-            @RequestBody @Valid UpdateUserRoleRequest request
+            @RequestBody @Valid UpdateUserRoleRequest request,
+            @RequestHeader(value = "X-User-Id", required = false) String changedBy
     ) {
         return UserResponse.from(
-                userManagementService.updateRole(request.email(), request.role())
+                userManagementService.updateRole(request.email(), request.role(), changedBy)
         );
     }
 }
