@@ -18,13 +18,16 @@ public class JwtAuthenticationFilter implements WebFilter {
 
     private final JwtService jwtService;
     private final RouteAuthorizationService authorizationService;
+    private final SecurityEventLogger securityEvents;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
-            RouteAuthorizationService authorizationService
+            RouteAuthorizationService authorizationService,
+            SecurityEventLogger securityEvents
     ) {
         this.jwtService = jwtService;
         this.authorizationService = authorizationService;
+        this.securityEvents = securityEvents;
     }
 
     @Override
@@ -58,7 +61,7 @@ public class JwtAuthenticationFilter implements WebFilter {
         String role = claims.get("role", String.class);
 
         if (!authorizationService.hasAccess(path, exchange.getRequest().getMethod(), role)) {
-            return forbidden(exchange, "Access denied");
+            return forbidden(exchange, "Role " + role + " is not allowed to access the route");
         }
 
         ServerHttpRequest mutatedRequest = exchange.getRequest()
@@ -82,11 +85,13 @@ public class JwtAuthenticationFilter implements WebFilter {
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
+        securityEvents.record(SecurityEventType.AUTHENTICATION_FAILED, exchange, message);
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         return exchange.getResponse().setComplete();
     }
 
     private Mono<Void> forbidden(ServerWebExchange exchange, String message) {
+        securityEvents.record(SecurityEventType.ACCESS_DENIED, exchange, message);
         exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
         return exchange.getResponse().setComplete();
     }

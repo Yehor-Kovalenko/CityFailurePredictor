@@ -14,13 +14,16 @@ public class UserManagementService {
 
     private final UserRepository userRepository;
     private final MeterRegistry registry;
+    private final SecurityAuditLogger securityAudit;
 
     public UserManagementService(
             UserRepository userRepository,
-            MeterRegistry registry
+            MeterRegistry registry,
+            SecurityAuditLogger securityAudit
     ) {
         this.userRepository = userRepository;
         this.registry = registry;
+        this.securityAudit = securityAudit;
     }
 
     public List<User> getUsers() {
@@ -28,10 +31,11 @@ public class UserManagementService {
     }
 
     @Transactional
-    public User updateRole(String email, Role role) {
+    public User updateRole(String email, Role role, String changedBy) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
 
+        Role previousRole = user.getRole();
         user.setRole(role);
 
         registry.counter(
@@ -39,6 +43,8 @@ public class UserManagementService {
                 "role", role.name()
         ).increment();
 
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        securityAudit.roleChanged(saved, previousRole, changedBy);
+        return saved;
     }
 }

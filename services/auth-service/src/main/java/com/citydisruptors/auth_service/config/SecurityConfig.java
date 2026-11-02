@@ -24,6 +24,7 @@ public class SecurityConfig {
     private final OAuthService oAuthService;
     private final ObjectMapper objectMapper;
     private final JwtService jwtService;
+    private final OAuthLoginFailureHandler loginFailureHandler;
 
     @Value("${app.swagger.allowed:false}")
     private boolean isSwaggerAllowed = false;
@@ -33,10 +34,12 @@ public class SecurityConfig {
 
     public SecurityConfig(OAuthService oAuthService,
                           ObjectMapper objectMapper,
-                          JwtService jwtService) {
+                          JwtService jwtService,
+                          OAuthLoginFailureHandler loginFailureHandler) {
         this.oAuthService = oAuthService;
         this.objectMapper = objectMapper;
         this.jwtService = jwtService;
+        this.loginFailureHandler = loginFailureHandler;
     }
 
     @Bean
@@ -71,6 +74,7 @@ public class SecurityConfig {
                 })
 
                 .oauth2Login(oauth -> oauth
+                        .failureHandler(loginFailureHandler)
                         .successHandler((request, response, authentication) -> {
 
                             OAuth2User principal = (OAuth2User) authentication.getPrincipal();

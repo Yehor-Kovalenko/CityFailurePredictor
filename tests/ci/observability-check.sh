@@ -9,30 +9,36 @@
 #   3. Traffic generated through the gateway is visible in the http_server_requests metric in Prometheus.
 #   4. Logs from all services are delivered to Loki (via Alloy).
 #   5. A specific request can be found in Loki using its X-Correlation-ID.
+#   6. Security events (requirement C4) reach Loki with the securityEvent label.
+#
+# Prometheus, Loki and the services are not published on the host (requirement C3),
+# so they are queried from a probe container in the compose network.
 #
 # Usage: tests/ci/observability-check.sh
 # Env:   OBS_TIMEOUT (seconds, default: 180),
 #        OBS_REPORT_DIR (default: observability-report)
 set -euo pipefail
+source "$(dirname "$0")/lib/in-network.sh"
 
 TIMEOUT="${OBS_TIMEOUT:-180}"
 REPORT_DIR="${OBS_REPORT_DIR:-observability-report}"
 GATEWAY="http://localhost:9191"
-PROMETHEUS="http://localhost:9090"
-LOKI="http://localhost:3100"
+PROMETHEUS="http://prometheus:9090"
+LOKI="http://loki:3100"
 REQUESTS=20
 
 # service:port - must match the jobs in monitoring/prometheus.yml
+# (the mTLS services expose metrics on their management port 8081)
 METRIC_TARGETS=(
   service-registry:8761
   config-server:8888
   api-gateway:9191
-  auth-service:8083
-  incident-service:8082
-  data-ingestion-service:8084
-  decision-service:8085
-  reporting-service:8086
-  notification-service:8087
+  auth-service:8081
+  incident-service:8081
+  data-ingestion-service:8081
+  decision-service:8081
+  reporting-service:8081
+  notification-service:8081
 )
 
 # Services with LOG_FILE in docker-compose.yml whose logs are collected by Alloy
@@ -78,7 +84,7 @@ retry() {
 }
 
 prom_query() {
-  curl -fsS -G "$PROMETHEUS/api/v1/query" --data-urlencode "query=$1"
+  net_curl -fsS -G "$PROMETHEUS/api/v1/query" --data-urlencode "query=$1"
 }
 
 command -v jq > /dev/null || fail "jq is not installed"
@@ -89,7 +95,7 @@ for target in "${METRIC_TARGETS[@]}"; do
   name="${target%%:*}"
   port="${target##*:}"
   out="$REPORT_DIR/metrics/${name}.prom"
-  curl -fsS "http://localhost:${port}/actuator/prometheus" -o "$out" \
+  net_curl -fsS "http://${name}:${port}/actuator/prometheus" > "$out" \
     || fail "$name: /actuator/prometheus is not responding"
   grep -q '^jvm_memory_used_bytes{' "$out" || fail "$name: jvm_memory_used_bytes metric is missing"
   grep -q "application=\"${name}\"" "$out" || fail "$name: metrics are missing the tag application=\"${name}\""
@@ -97,10 +103,10 @@ done
 ok "all ${#METRIC_TARGETS[@]} services expose /actuator/prometheus with the application tag"
 
 # 2. Prometheus scrapes all services
-retry "Prometheus is not ready" curl -fsS -o /dev/null "$PROMETHEUS/-/ready"
+retry "Prometheus is not ready" net_curl -fsS -o /dev/null "$PROMETHEUS/-/ready"
 
 targets_up() {
-  curl -fsS "$PROMETHEUS/api/v1/targets?state=active" > "$REPORT_DIR/prometheus-targets.json" || return 1
+  net_curl -fsS "$PROMETHEUS/api/v1/targets?state=active" > "$REPORT_DIR/prometheus-targets.json" || return 1
   local name health
   for target in "${METRIC_TARGETS[@]}"; do
     name="${target%%:*}"
@@ -136,10 +142,13 @@ retry "Prometheus did not record the gateway traffic" gateway_requests_counted
 ok "Prometheus recorded the gateway traffic (http_server_requests_seconds_count increased by >= $REQUESTS)"
 
 # 4. Logs from all services reach Loki
-retry "Loki is not ready" bash -c "curl -fsS '$LOKI/ready' | grep -q ready"
+loki_ready() {
+  net_curl -fsS "$LOKI/ready" | grep -q ready
+}
+retry "Loki is not ready" loki_ready
 
 services_logging() {
-  curl -fsS "$LOKI/loki/api/v1/label/service/values" > "$REPORT_DIR/loki-services.json" || return 1
+  net_curl -fsS "$LOKI/loki/api/v1/label/service/values" > "$REPORT_DIR/loki-services.json" || return 1
   local svc
   for svc in "${LOG_SERVICES[@]}"; do
     jq -e --arg s "$svc" '.data // [] | index($s) != null' "$REPORT_DIR/loki-services.json" > /dev/null \
@@ -151,7 +160,7 @@ ok "logs from all ${#LOG_SERVICES[@]} services reach Loki"
 
 # 5. A specific request found in Loki by its correlation ID
 correlated_log_found() {
-  curl -fsS -G "$LOKI/loki/api/v1/query_range" \
+  net_curl -fsS -G "$LOKI/loki/api/v1/query_range" \
     --data-urlencode "query={correlationId=\"${correlation_id}\"}" \
     --data-urlencode "limit=100" > "$REPORT_DIR/loki-correlation.json" || return 1
   jq -e '[.data.result[] | select(.stream.service == "api-gateway")] | length > 0' \
@@ -159,6 +168,17 @@ correlated_log_found() {
 }
 retry "no logs in Loki for the request with correlationId=${correlation_id}" correlated_log_found
 ok "logs of the request with correlationId=${correlation_id} found in Loki"
+
+# 6. The rejected requests of step 3 (no token) are audited as security events
+security_event_logged() {
+  net_curl -fsS -G "$LOKI/loki/api/v1/query_range" \
+    --data-urlencode "query={securityEvent=\"AUTHENTICATION_FAILED\", correlationId=\"${correlation_id}\"}" \
+    --data-urlencode "limit=100" > "$REPORT_DIR/loki-security-events.json" || return 1
+  jq -e '[.data.result[] | select(.stream.service == "api-gateway")] | length > 0' \
+    "$REPORT_DIR/loki-security-events.json" > /dev/null
+}
+retry "no security event in Loki for the rejected request with correlationId=${correlation_id}" security_event_logged
+ok "security events of rejected requests are searchable in Loki (securityEvent label)"
 
 write_summary
 echo "OBSERVABILITY CHECK PASSED"

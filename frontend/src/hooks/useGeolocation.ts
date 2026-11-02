@@ -5,19 +5,9 @@ import {
   isGeolocationSupported,
   isPermissionDenied,
 } from "../utils/geo";
+import { GeoConsent, readGeoConsent, storeGeoConsent } from "../services/geoConsent";
 
-export type GeoConsent = "unknown" | "granted" | "denied";
-
-const GEO_CONSENT_STORAGE_KEY = "city-failure-predictor.geo-consent";
-
-export function readGeoConsent(): GeoConsent {
-  const stored = localStorage.getItem(GEO_CONSENT_STORAGE_KEY);
-  return stored === "granted" || stored === "denied" ? stored : "unknown";
-}
-
-function storeGeoConsent(consent: Exclude<GeoConsent, "unknown">): void {
-  localStorage.setItem(GEO_CONSENT_STORAGE_KEY, consent);
-}
+export type { GeoConsent };
 
 export function useGeolocation() {
   const [consent, setConsent] = useState<GeoConsent>(readGeoConsent);

@@ -1,0 +1,34 @@
+server:
+  ssl:
+    enabled: true
+    bundle: mtls
+    client-auth: need
+  forward-headers-strategy: native
+
+spring:
+  ssl:
+    bundle:
+      pem:
+        mtls:
+          keystore:
+            certificate: file:${TLS_CERTS_DIR}/${spring.application.name}.crt
+            private-key: file:${TLS_CERTS_DIR}/${spring.application.name}.key
+          truststore:
+            certificate: file:${TLS_CERTS_DIR}/ca.crt
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8081}
+    ssl:
+      enabled: false
+
+eureka:
+  instance:
+    hostname: ${spring.application.name}
+    non-secure-port-enabled: false
+    secure-port-enabled: true
+    secure-port: ${server.port}
+
+app:
+  mtls:
+    enabled: true

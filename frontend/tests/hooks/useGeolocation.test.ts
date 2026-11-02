@@ -1,8 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useGeolocation } from "@/hooks/useGeolocation";
-
-const CONSENT_KEY = "city-failure-predictor.geo-consent";
+import { readGeoConsent, storeGeoConsent } from "@/services/geoConsent";
 
 let onSuccess: PositionCallback | undefined;
 let onError: PositionErrorCallback | undefined;
@@ -39,7 +38,7 @@ describe("useGeolocation", () => {
     act(() => onSuccess?.({ coords: { latitude: 51.7, longitude: 19.4 } } as GeolocationPosition));
 
     expect(result.current.position).toEqual({ lat: 51.7, lng: 19.4 });
-    expect(localStorage.getItem(CONSENT_KEY)).toBe("granted");
+    expect(readGeoConsent()).toBe("granted");
     expect(JSON.stringify({ ...localStorage })).not.toContain("51.7");
   });
 
@@ -52,7 +51,7 @@ describe("useGeolocation", () => {
 
     expect(result.current.position).toBeNull();
     expect(clearWatch).toHaveBeenCalledWith(7);
-    expect(localStorage.getItem(CONSENT_KEY)).toBe("denied");
+    expect(readGeoConsent()).toBe("denied");
   });
 
   it("falls back to denied when the browser blocks location access", () => {
@@ -66,7 +65,7 @@ describe("useGeolocation", () => {
   });
 
   it("restores a previous decision", () => {
-    localStorage.setItem(CONSENT_KEY, "granted");
+    storeGeoConsent("granted");
 
     renderHook(() => useGeolocation());
 

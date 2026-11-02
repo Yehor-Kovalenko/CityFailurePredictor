@@ -2,6 +2,7 @@ import {render, screen, waitFor} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {afterEach, describe, expect, it, vi} from "vitest";
 import {CreateIncidentModal} from "@/components/CreateIncidentModal";
+import {storeGeoConsent} from "@/services/geoConsent";
 
 const { createIncident } = vi.hoisted(() => ({
   createIncident: vi.fn(),
@@ -86,7 +87,7 @@ describe("CreateIncidentModal", () => {
   });
 
   it("auto-fills the location when the user has already consented", async () => {
-    localStorage.setItem("city-failure-predictor.geo-consent", "granted");
+    storeGeoConsent("granted");
     vi.stubGlobal("navigator", {
       ...navigator,
       geolocation: {

@@ -1,0 +1,58 @@
+services:
+  service-registry:
+    ports:
+      - "8761:8761"
+
+  config-server:
+    ports:
+      - "8888:8888"
+
+  api-gateway:
+    ports:
+      - "5005:5005"
+    environment:
+      JAVA_TOOL_OPTIONS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+
+  kafka-ui:
+    ports:
+      - "8080:8080"
+
+  ai-service:
+    ports:
+      - "8090:8090"
+
+  postgres-auth:
+    ports:
+      - "5432:5432"
+
+  postgres-incidents:
+    ports:
+      - "5433:5432"
+
+  postgres-decision:
+    ports:
+      - "5434:5432"
+
+  postgres-reporting:
+    ports:
+      - "5435:5432"
+
+  postgres-notifications:
+    ports:
+      - "5436:5432"
+
+  timescaledb-ingestion:
+    ports:
+      - "5437:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  prometheus:
+    ports:
+      - "9090:9090"
+
+  loki:
+    ports:
+      - "3100:3100"

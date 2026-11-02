@@ -1,14 +1,33 @@
+x-mtls-environment: &mtls-environment
+  SPRING_PROFILES_ACTIVE: mtls
+  SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/etc/cfp/tls/
+  TLS_CERTS_DIR: /etc/cfp/certs
+  MANAGEMENT_PORT: 8081
+
 services:
 
   # --- Infrastructure ---
+
+  certs-init:
+    image: eclipse-temurin:21-jre
+    container_name: certs-init
+    entrypoint: [ "/bin/sh", "/opt/cfp/generate-certs.sh" ]
+    environment:
+      TLS_SERVICES: >-
+        api-gateway auth-service incident-service data-ingestion-service
+        decision-service reporting-service notification-service
+      TLS_KEYSTORE_PASSWORD: ${TLS_KEYSTORE_PASSWORD:-changeit}
+    volumes:
+      - ./security/tls/generate-certs.sh:/opt/cfp/generate-certs.sh:ro
+      - tls-ca:/ca
+      - tls-certs:/certs
+    restart: "no"
 
   service-registry:
     container_name: service-registry
     build:
       context: .
       dockerfile: services/service-registry/Dockerfile
-    ports:
-      - "8761:8761"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
       interval: 5s
@@ -22,8 +41,6 @@ services:
     build:
       context: .
       dockerfile: services/config-server/Dockerfile
-    ports:
-      - "8888:8888"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
     depends_on:
@@ -46,18 +63,24 @@ services:
       dockerfile: services/api-gateway/Dockerfile
     ports:
       - "9191:9191"
-      - "5005:5005"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/api-gateway.log
-      JAVA_TOOL_OPTIONS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+      SPRING_PROFILES_ACTIVE: mtls-gateway
+      SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/etc/cfp/tls/
+      TLS_CERTS_DIR: /etc/cfp/certs
+      TLS_KEYSTORE_PASSWORD: ${TLS_KEYSTORE_PASSWORD:-changeit}
     depends_on:
+      certs-init:
+        condition: service_completed_successfully
       service-registry:
         condition: service_healthy
       config-server:
         condition: service_healthy
     volumes:
       - log-volume:/var/log/services
+      - ./security/tls/config:/etc/cfp/tls:ro
+      - tls-certs:/etc/cfp/certs:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9191/actuator/health" ]
       interval: 5s
@@ -72,8 +95,6 @@ services:
   kafka:
     image: apache/kafka:3.7.0
     container_name: kafka
-    ports:
-      - "9092:9092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -98,8 +119,6 @@ services:
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
-    ports:
-      - "8080:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
@@ -113,8 +132,6 @@ services:
   postgres-auth:
     image: postgres:15
     container_name: postgres-auth
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_DB: auth_db
       POSTGRES_USER: postgres
@@ -131,8 +148,6 @@ services:
   postgres-incidents:
     image: postgres:15
     container_name: postgres-incidents
-    ports:
-      - "5433:5432"
     environment:
       POSTGRES_DB: incidents_db
       POSTGRES_USER: postgres
@@ -149,8 +164,6 @@ services:
   postgres-decision:
     image: postgres:15
     container_name: postgres-decision
-    ports:
-      - "5434:5432"
     environment:
       POSTGRES_DB: decision_db
       POSTGRES_USER: postgres
@@ -167,8 +180,6 @@ services:
   postgres-reporting:
     image: postgres:15
     container_name: postgres-reporting
-    ports:
-      - "5435:5432"
     environment:
       POSTGRES_DB: reporting_db
       POSTGRES_USER: postgres
@@ -185,8 +196,6 @@ services:
   postgres-notifications:
     image: postgres:15
     container_name: postgres-notifications
-    ports:
-      - "5436:5432"
     environment:
       POSTGRES_DB: notifications_db
       POSTGRES_USER: postgres
@@ -203,8 +212,6 @@ services:
   timescaledb-ingestion:
     image: timescale/timescaledb:latest-pg15
     container_name: timescaledb-ingestion
-    ports:
-      - "5437:5432"
     environment:
       POSTGRES_DB: ingestion_db
       POSTGRES_USER: postgres
@@ -221,8 +228,6 @@ services:
   redis:
     image: redis:7
     container_name: redis
-    ports:
-      - "6379:6379"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
@@ -238,21 +243,24 @@ services:
     build:
       context: .
       dockerfile: services/auth-service/Dockerfile
-    ports:
-      - "8083:8083"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/auth-service.log
+      <<: *mtls-environment
       AUTH_ADMIN_EMAILS: lupelikan@gmail.com
     depends_on:
+      certs-init:
+        condition: service_completed_successfully
       postgres-auth:
         condition: service_healthy
       config-server:
         condition: service_healthy
     volumes:
       - log-volume:/var/log/services
+      - ./security/tls/config:/etc/cfp/tls:ro
+      - tls-certs:/etc/cfp/certs:ro
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8083/actuator/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -264,25 +272,28 @@ services:
     build:
       context: .
       dockerfile: services/incident-service/Dockerfile
-    ports:
-      - "8082:8082"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/incident-service.log
+      <<: *mtls-environment
     #      JAVA_TOOL_OPTIONS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8082/actuator/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 5s
       timeout: 3s
       retries: 20
       start_period: 15s
     depends_on:
+      certs-init:
+        condition: service_completed_successfully
       postgres-incidents:
         condition: service_healthy
       config-server:
         condition: service_healthy
     volumes:
       - log-volume:/var/log/services
+      - ./security/tls/config:/etc/cfp/tls:ro
+      - tls-certs:/etc/cfp/certs:ro
     restart: always
 
   data-ingestion-service:
@@ -290,13 +301,14 @@ services:
     build:
       context: .
       dockerfile: services/data-ingestion-service/Dockerfile
-    ports:
-      - "8084:8084"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/data-ingestion-service.log
+      <<: *mtls-environment
       DATASET_PATH: /data/low-carbon-london
     depends_on:
+      certs-init:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       config-server:
@@ -309,10 +321,12 @@ services:
         condition: service_healthy
     volumes:
       - log-volume:/var/log/services
+      - ./security/tls/config:/etc/cfp/tls:ro
+      - tls-certs:/etc/cfp/certs:ro
       - ./datasets/low-carbon-london:/data/low-carbon-london:ro
       - ./datasets/sample:/data/sample:ro
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8084/actuator/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -324,8 +338,6 @@ services:
     build:
       context: .
       dockerfile: AI/Dockerfile
-    ports:
-      - "8090:8090"
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
@@ -344,12 +356,13 @@ services:
     build:
       context: .
       dockerfile: services/decision-service/Dockerfile
-    ports:
-      - "8085:8085"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/decision-service.log
+      <<: *mtls-environment
     depends_on:
+      certs-init:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       postgres-decision:
@@ -360,8 +373,10 @@ services:
         condition: service_healthy
     volumes:
       - log-volume:/var/log/services
+      - ./security/tls/config:/etc/cfp/tls:ro
+      - tls-certs:/etc/cfp/certs:ro
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8085/actuator/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -373,12 +388,13 @@ services:
     build:
       context: .
       dockerfile: services/reporting-service/Dockerfile
-    ports:
-      - "8086:8086"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/reporting-service.log
+      <<: *mtls-environment
     depends_on:
+      certs-init:
+        condition: service_completed_successfully
       postgres-reporting:
         condition: service_healthy
       redis:
@@ -393,8 +409,10 @@ services:
         condition: service_started
     volumes:
       - log-volume:/var/log/services
+      - ./security/tls/config:/etc/cfp/tls:ro
+      - tls-certs:/etc/cfp/certs:ro
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8086/actuator/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -406,12 +424,13 @@ services:
     build:
       context: .
       dockerfile: services/notification-service/Dockerfile
-    ports:
-      - "8087:8087"
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/notification-service.log
+      <<: *mtls-environment
     depends_on:
+      certs-init:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
       postgres-notifications:
@@ -422,8 +441,10 @@ services:
         condition: service_healthy
     volumes:
       - log-volume:/var/log/services
+      - ./security/tls/config:/etc/cfp/tls:ro
+      - tls-certs:/etc/cfp/certs:ro
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8087/actuator/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -458,8 +479,6 @@ services:
   prometheus:
     image: prom/prometheus:v2.52.0
     container_name: prometheus
-    ports:
-      - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
@@ -480,8 +499,6 @@ services:
   loki:
     image: grafana/loki:latest
     container_name: loki
-    ports:
-      - "3100:3100"
     volumes:
       - ./logging/loki-config.yaml:/etc/loki/local-config.yaml
       - loki-data:/loki
@@ -553,8 +570,6 @@ services:
     container_name: kafka-exporter
     command:
       - "--kafka.server=kafka:9092"
-    ports:
-      - "9308:9308"
     depends_on:
       kafka:
         condition: service_healthy
@@ -571,3 +586,5 @@ volumes:
   grafana_data:
   log-volume:
   loki-data:
+  tls-ca:
+  tls-certs:

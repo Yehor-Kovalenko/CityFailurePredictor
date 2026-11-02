@@ -7,14 +7,14 @@ scrape_configs:
   - job_name: 'auth-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: [ 'auth-service:8083' ]
+      - targets: [ 'auth-service:8081' ]
         labels:
           application: 'auth-service'
 
   - job_name: 'incident-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: [ 'incident-service:8082' ]
+      - targets: [ 'incident-service:8081' ]
         labels:
           application: 'incident-service'
 
@@ -42,28 +42,28 @@ scrape_configs:
   - job_name: 'data-ingestion-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: [ 'data-ingestion-service:8084' ]
+      - targets: [ 'data-ingestion-service:8081' ]
         labels:
           application: 'data-ingestion-service'
 
   - job_name: 'decision-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: [ 'decision-service:8085' ]
+      - targets: [ 'decision-service:8081' ]
         labels:
           application: 'decision-service'
 
   - job_name: 'reporting-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: [ 'reporting-service:8086' ]
+      - targets: [ 'reporting-service:8081' ]
         labels:
           application: 'reporting-service'
 
   - job_name: 'notification-service'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: [ 'notification-service:8087' ]
+      - targets: [ 'notification-service:8081' ]
         labels:
           application: 'notification-service'
 
