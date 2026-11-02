@@ -29,15 +29,7 @@ public class TokenBucketRateLimiter {
         if (buckets.size() >= maxTrackedClients && !buckets.containsKey(clientKey)) {
             evictRefilledBuckets(now);
         }
-        Bucket bucket = buckets.computeIfAbsent(clientKey, key -> new Bucket(capacity, now));
-        synchronized (bucket) {
-            bucket.refill(now);
-            if (bucket.tokens >= 1) {
-                bucket.tokens -= 1;
-                return true;
-            }
-            return false;
-        }
+        return buckets.computeIfAbsent(clientKey, key -> new Bucket(capacity, now)).tryConsume(now);
     }
 
     int trackedClients() {
@@ -45,12 +37,7 @@ public class TokenBucketRateLimiter {
     }
 
     private void evictRefilledBuckets(long now) {
-        buckets.values().removeIf(bucket -> {
-            synchronized (bucket) {
-                bucket.refill(now);
-                return bucket.tokens >= capacity;
-            }
-        });
+        buckets.values().removeIf(bucket -> bucket.isFull(now));
     }
 
     private final class Bucket {
@@ -60,6 +47,20 @@ public class TokenBucketRateLimiter {
         private Bucket(double tokens, long lastRefill) {
             this.tokens = tokens;
             this.lastRefill = lastRefill;
+        }
+
+        private synchronized boolean tryConsume(long now) {
+            refill(now);
+            if (tokens >= 1) {
+                tokens -= 1;
+                return true;
+            }
+            return false;
+        }
+
+        private synchronized boolean isFull(long now) {
+            refill(now);
+            return tokens >= capacity;
         }
 
         private void refill(long now) {
