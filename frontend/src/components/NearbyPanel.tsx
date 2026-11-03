@@ -27,7 +27,7 @@ export function NearbyPanel({
   onClearArea,
 }: NearbyPanelProps) {
   return (
-    <div className="absolute top-3 right-3 z-[1000] w-72 max-w-[calc(100%-1.5rem)] rounded-lg border border-dark-600 bg-dark-900/95 p-3 text-sm text-gray-200 shadow-lg">
+    <div className="absolute inset-x-3 bottom-7 sm:inset-x-auto sm:bottom-auto sm:top-3 sm:right-3 z-[1000] sm:w-72 max-h-[50%] sm:max-h-[calc(100%-1.5rem)] overflow-y-auto rounded-lg border border-dark-600 bg-dark-900/95 p-3 text-sm text-gray-200 shadow-lg">
       {consent === "unknown" ? (
         <>
           <p className="font-semibold text-white">Show incidents near you?</p>

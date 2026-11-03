@@ -160,13 +160,13 @@ function MapContent({
               },
             }}
           >
-            <Popup>
-              <div className="min-w-xs">
+            <Popup maxWidth={260}>
+              <div className="min-w-[12rem] max-w-full">
                 <div className="flex items-start gap-2">
-                  <span className="text-2xl">
+                  <span className="text-2xl" aria-hidden="true">
                     {INCIDENT_TYPE_ICONS[incident.incidentType]}
                   </span>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-sm text-gray-900">
                       {incident.incidentTitle}
                     </h4>

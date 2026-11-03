@@ -24,14 +24,20 @@ export function Sidebar({
   ];
 
   return (
-    <div className="w-20 bg-gradient-to-b from-dark-800 to-dark-900 border-r border-dark-700 flex flex-col items-center py-6 space-y-8">
+    <div className="shrink-0 w-full md:w-20 bg-gradient-to-b from-dark-800 to-dark-900 border-t md:border-t-0 md:border-r border-dark-700 flex md:flex-col items-center md:py-6 md:gap-8 pb-safe">
       {/* Logo */}
-      <div className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold text-3xl">
+      <div
+        className="hidden md:flex w-12 h-12 rounded-lg items-center justify-center text-white font-bold text-3xl"
+        aria-hidden="true"
+      >
         🏙️
       </div>
 
       {/* Menu */}
-      <nav className="flex-1 flex flex-col space-y-4">
+      <nav
+        aria-label="Main navigation"
+        className="flex-1 w-full flex md:flex-col justify-around md:justify-start items-center py-2 md:py-0 md:gap-4"
+      >
         {menuItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -51,6 +57,8 @@ export function Sidebar({
                     : "text-dark-400 hover:text-white hover:bg-dark-700"
               }`}
               title={item.disabled ? `${item.label} (admin only)` : item.label}
+              aria-label={item.label}
+              aria-current={activeTab === item.id ? "page" : undefined}
             >
               <Icon size={24} />
             </button>

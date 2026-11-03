@@ -8,3 +8,8 @@ dist/
 # Test reports
 coverage/
 test-results/
+e2e-results/
+playwright-report/
+
+# TypeScript incremental build info
+*.tsbuildinfo
