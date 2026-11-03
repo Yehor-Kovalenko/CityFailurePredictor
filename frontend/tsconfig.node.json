@@ -8,6 +8,7 @@
   },
   "include": [
     "vite.config.ts",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "pwa-assets.config.ts"
   ]
 }

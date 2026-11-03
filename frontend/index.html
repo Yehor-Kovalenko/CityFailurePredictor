@@ -2,20 +2,158 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
+    <title>City Failure Predictor</title>
     <meta
       name="description"
       content="City Failure Predictor - real-time monitoring and prediction of city infrastructure failures."
     />
     <meta name="theme-color" content="#0a0e27" />
     <meta name="color-scheme" content="dark" />
-    <title>City Failure Predictor</title>
+
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" sizes="any" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="CityFailure" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0a0e27;
+      }
+
+      .splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.25rem;
+        padding: env(safe-area-inset-top) 1.5rem env(safe-area-inset-bottom);
+        background: radial-gradient(circle at 50% 40%, #1f2937 0%, #0a0e27 70%);
+        color: #f3f4f6;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+          Roboto, sans-serif;
+        text-align: center;
+        transition: opacity 300ms ease-out, visibility 300ms ease-out;
+      }
+
+      .splash--hidden {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .splash__logo {
+        width: clamp(5rem, 22vw, 7.5rem);
+        height: auto;
+        filter: drop-shadow(0 12px 32px rgba(59, 130, 246, 0.35));
+        animation: splash-pulse 1.6s ease-in-out infinite;
+      }
+
+      .splash__title {
+        margin: 0;
+        font-size: clamp(1.5rem, 6vw, 2.25rem);
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+
+      .splash__subtitle {
+        margin: 0;
+        max-width: 22rem;
+        color: #9ca3af;
+        font-size: clamp(0.875rem, 3.5vw, 1rem);
+      }
+
+      .splash__progress {
+        position: relative;
+        width: min(12rem, 60vw);
+        height: 4px;
+        overflow: hidden;
+        border-radius: 9999px;
+        background: #1f2937;
+      }
+
+      .splash__progress::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        width: 40%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #3b82f6, #f59e0b);
+        animation: splash-progress 1.2s ease-in-out infinite;
+      }
+
+      @keyframes splash-pulse {
+        50% {
+          transform: scale(1.06);
+        }
+      }
+
+      @keyframes splash-progress {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(250%);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .splash,
+        .splash__logo,
+        .splash__progress::after {
+          animation: none;
+          transition: none;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div
+      id="splash"
+      class="splash"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading City Failure Predictor"
+    >
+      <svg
+        class="splash__logo"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 64 64"
+        aria-hidden="true"
+      >
+        <rect width="64" height="64" rx="14" fill="#0a0e27" />
+        <g fill="#3b82f6">
+          <rect x="10" y="30" width="10" height="24" rx="1.5" />
+          <rect x="24" y="16" width="12" height="38" rx="1.5" />
+          <rect x="40" y="24" width="12" height="30" rx="1.5" />
+        </g>
+        <path d="M44 6 36 22h7l-5 12 12-17h-7z" fill="#f59e0b" />
+      </svg>
+      <h1 class="splash__title">City Failure Predictor</h1>
+      <p class="splash__subtitle">
+        Predicting infrastructure failures before they happen
+      </p>
+      <div class="splash__progress" aria-hidden="true"></div>
+      <noscript>
+        <p class="splash__subtitle">
+          This application requires JavaScript to be enabled.
+        </p>
+      </noscript>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
