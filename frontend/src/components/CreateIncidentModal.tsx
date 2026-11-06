@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {Crosshair, Map as MapIcon, X} from "lucide-react";
 import {Coordinates, CreateIncidentRequest, IncidentType} from "../types";
-import {incidentService} from "../services/api";
+import {incidentRepository} from "../offline/repository";
 import {publish} from "@/utils/eventBroker.ts";
 import {shortenText} from "@/utils/formatters.ts";
 import {getErrorMessage} from "@/utils/errors.ts";
@@ -112,7 +112,7 @@ export function CreateIncidentModal({
         incidentType: formData.incidentType,
       };
 
-      await incidentService.createIncident(request);
+      const { queued } = await incidentRepository.create(request);
       onSuccess();
       onClose();
       setFormData({
@@ -127,7 +127,7 @@ export function CreateIncidentModal({
       publish('event_feed', {
         title: request.incidentTitle,
         summary: shortenText(request.incidentSummary, 25),
-        type: "Incident created"
+        type: queued ? "Incident saved offline, it will sync later" : "Incident created"
       });
 
     } catch (err) {

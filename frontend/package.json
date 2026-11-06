@@ -18,6 +18,7 @@
   "dependencies": {
     "axios": "^1.6.0",
     "date-fns": "^2.30.0",
+    "idb": "^8.0.4",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.298.0",
     "react": "^18.2.0",
@@ -44,6 +45,7 @@
     "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
+    "fake-indexeddb": "^6.2.7",
     "globals": "^17.13.0",
     "jsdom": "^26.1.0",
     "postcss": "^8.4.31",
@@ -51,6 +53,9 @@
     "typescript": "^5.2.2",
     "typescript-eslint": "^8.71.1",
     "vite": "^5.0.0",
-    "vitest": "^3.2.7"
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^3.2.7",
+    "workbox-build": "^7.4.1",
+    "workbox-window": "^7.4.1"
   }
 }

@@ -3,7 +3,8 @@ import {IncidentCard} from "./IncidentCard";
 import {FilterBar} from "./FilterBar";
 import {CreateIncidentModal} from "./CreateIncidentModal";
 import {Incident, IncidentStatus, IncidentType} from "../types";
-import {incidentService} from "../services/api";
+import {incidentRepository} from "../offline/repository";
+import {useSyncStatus} from "../hooks/useSyncStatus";
 import {AlertCircle, Plus, RefreshCw} from "lucide-react";
 import {publish} from "@/utils/eventBroker.ts";
 import {EventFeedItemLevel} from "@/types";
@@ -18,18 +19,19 @@ export function IncidentDashboard() {
   >();
   const [selectedType, setSelectedType] = useState<IncidentType | undefined>();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const {online, pending} = useSyncStatus();
 
   const loadIncidents = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await incidentService.getAllIncidents(
+      const result = await incidentRepository.getAll(
         selectedStatus,
         selectedType,
       );
-      setIncidents(data);
+      setIncidents(result.data);
       publish('event_feed', {
-        title: "Incidents loaded",
+        title: result.fromCache ? "Showing incidents saved offline" : "Incidents loaded",
         eventLevel: EventFeedItemLevel.INFO,
         type: "Incidents"
       });
@@ -47,7 +49,7 @@ export function IncidentDashboard() {
 
   useEffect(() => {
     loadIncidents();
-  }, [loadIncidents]);
+  }, [loadIncidents, online, pending]);
 
   const openCounts = incidents.filter((i) => i.status === "OPEN").length;
   const inProgressCounts = incidents.filter(

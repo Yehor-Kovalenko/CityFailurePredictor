@@ -10,7 +10,7 @@ React 18 + TypeScript + Vite + Tailwind CSS.
 | `npm run build` | Type check and production build into `dist/` |
 | `npm run lint` | ESLint, zero warnings allowed |
 | `npm test` / `npm run test:coverage` | Unit and component tests (Vitest, jsdom) |
-| `npm run test:e2e` | End-to-end suite: responsive layout and PWA checks (Playwright, Chromium) |
+| `npm run test:e2e` | End-to-end suite: responsive layout, PWA, offline and update checks (Playwright, Chromium) |
 | `npm run test:e2e:ui` | The same suite in Playwright's interactive UI |
 | `npm run generate-pwa-assets` | Regenerates the PWA icon set from `public/favicon.svg` |
 
@@ -48,3 +48,35 @@ Two complementary splash screens:
 Icons (64, 192, 512, maskable 512, Apple touch 180, `favicon.ico`) are generated from `public/favicon.svg` by `@vite-pwa/assets-generator` (`pwa-assets.config.ts`) and committed. nginx serves the manifest as `application/manifest+json` with `Cache-Control: no-cache`.
 
 `e2e/pwa.spec.ts` verifies the manifest fields, that every declared icon exists with its declared size, that Chrome reports no installability or manifest errors (via the DevTools Protocol), and that the splash is visible while the bundle loads and removed afterwards.
+
+## Offline mode and synchronization
+
+The app keeps working without a connection; changes made offline are sent automatically when it returns.
+
+| Layer | Where | What it does |
+|---|---|---|
+| App shell | Service worker (`vite-plugin-pwa`, Workbox `generateSW`) | Precaches HTML, JS, CSS, icons and the manifest, so the app starts offline. Map tiles (`map-tiles`, stale-while-revalidate, 500 tiles / 7 days) and Leaflet marker images (`leaflet-assets`) are cached at runtime |
+| Server data | IndexedDB `snapshots` store (`src/offline/snapshots.ts`) | Network first: every successful load of incidents and notifications is saved; when the server is unreachable the last copy is shown with a banner saying how old it is. Scoped per user and cleared on logout |
+| Changes | IndexedDB `outbox` store (`src/offline/outbox.ts`) | Creating an incident, changing its status, deleting it and marking a notification as read are queued when the device is offline, the request fails for lack of a connection, or older changes are still queued (keeps server order). The UI shows them immediately with a "Pending sync" badge and a pending counter in the top bar |
+| Sync | `src/offline/sync.ts`, `src/offline/syncManager.ts` | Replays the queue oldest first on start-up, on reconnect, when the tab becomes visible, after each new change and every 30 s while changes are pending. Stops at the first transient failure (no connection, 408, 429, 5xx) to keep the order; keeps changes on 401 until the user signs in again; drops and reports changes the server refuses (other 4xx). A 404 on delete or mark-as-read counts as done. A Web Lock ensures only one tab syncs at a time; a `BroadcastChannel` keeps the counters of all tabs up to date |
+
+The outbox coalesces redundant changes: a newer status change replaces an older one, deleting an incident drops its queued status changes, and deleting an incident created offline cancels its creation. An incident created offline has a temporary `local-` id; its status can change once it is synchronized.
+
+Limitation: the backend has no idempotency keys, so if the connection drops after the server stored a new incident but before the response arrives, the replay creates it a second time.
+
+## Updates
+
+A new release must never lose unsynchronized changes or cached data:
+
+- **User-controlled activation.** The service worker uses `registerType: "prompt"`: a new version installs in the background and waits. `UpdatePrompt` offers "Reload" or "Later" and tells the user that their unsynced changes are kept. Before reloading it tries to sync (when online). The app checks for a new version every hour while open.
+- **Data outside the versioned caches.** The outbox and snapshots live in IndexedDB, which updates do not touch. Its schema evolves through append-only migrations (`MIGRATIONS` in `src/offline/db.ts`): a released migration is never changed and no migration drops a store with user data. When another tab runs a newer schema, the old connection closes itself instead of blocking the upgrade.
+- **Stable runtime cache names.** Workbox `cleanupOutdatedCaches` removes only precaches of previous builds; `map-tiles` and `leaflet-assets` keep their names, so the new version reuses them.
+- **Server headers** (`nginx.conf`). `index.html` (including the SPA fallback), `sw.js` and the manifest are `no-cache`, so clients always see a new release. Hashed files in `/assets/` and `workbox-*.js` are `immutable` for a year; icons are cached for 7 days.
+
+### How it is verified
+
+- Unit tests (`tests/offline/`) use `fake-indexeddb` and cover the schema upgrade keeping data, outbox ordering and coalescing, retry, auth and reject handling during sync, the network-first fallback, and sync triggers.
+- `e2e/offline.spec.ts` runs in Chromium against the production build:
+  - the app starts offline from the service worker cache and shows the saved incidents;
+  - an incident created and another deleted offline are queued and reach the server when the connection returns;
+  - an update is simulated by `e2e/releaseServer.ts`, which serves `dist/` and can change `sw.js` like a new deployment. The test queues a change, deploys a new release, accepts the update prompt, and checks that the new version runs with the queued change and cached incidents intact and still syncs them.

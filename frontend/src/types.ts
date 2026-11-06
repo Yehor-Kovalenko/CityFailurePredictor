@@ -22,6 +22,7 @@ export interface Incident {
   status: IncidentStatus;
   timestamp: string;
   lastUpdated: string;
+  pendingSync?: boolean;
 }
 
 export interface CreateIncidentRequest {

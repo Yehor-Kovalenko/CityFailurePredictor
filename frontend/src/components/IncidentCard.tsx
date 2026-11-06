@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { CheckCircle, AlertCircle, Clock, Trash2 } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, UploadCloud, Trash2 } from "lucide-react";
 import { Incident, IncidentStatus } from "../types";
-import {incidentService} from "../services/api";
+import {incidentRepository} from "../offline/repository";
+import {isLocalId} from "../offline/outbox";
 import {
   INCIDENT_TYPE_COLORS,
   INCIDENT_STATUS_COLORS,
@@ -22,18 +23,19 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   const statusOptions: IncidentStatus[] = ["OPEN", "IN_PROGRESS", "RESOLVED"];
+  const awaitingCreation = isLocalId(incident.id);
 
   const handleStatusChange = async (newStatus: IncidentStatus) => {
     if (newStatus === incident.status) return;
 
     setLoading(true);
     try {
-      await incidentService.updateIncidentStatus(incident.id, {
-        status: newStatus,
-      });
+      const { queued } = await incidentRepository.updateStatus(incident, newStatus);
       onUpdate();
       publish('event_feed', {
-        title: "Incident status updated",
+        title: queued
+          ? "Status change saved offline, it will sync later"
+          : "Incident status updated",
         summary: `${newStatus}`,
         eventLevel: EventFeedItemLevel.INFO,
         type: "Incidents"
@@ -54,10 +56,10 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
     if (window.confirm("Are you sure you want to delete this incident?")) {
       setLoading(true);
       try {
-        await incidentService.deleteIncident(incident.id);
+        const { queued } = await incidentRepository.remove(incident.id);
         onUpdate();
         publish('event_feed', {
-          title: "Incident deleted",
+          title: queued ? "Deletion saved offline, it will sync later" : "Incident deleted",
           eventLevel: EventFeedItemLevel.INFO,
           type: "Incidents"
         });
@@ -109,6 +111,15 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-3">
+        {incident.pendingSync && (
+          <span
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300"
+            title="Saved on this device, waiting to be sent to the server"
+          >
+            <UploadCloud size={14} aria-hidden="true" />
+            Pending sync
+          </span>
+        )}
         <span
           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${INCIDENT_TYPE_COLORS[incident.incidentType]}`}
         >
@@ -164,7 +175,8 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
               key={status}
               onClick={() => handleStatusChange(status)}
               aria-label={`Set status ${status}`}
-              disabled={loading}
+              title={awaitingCreation ? "Available once the incident is synchronized" : undefined}
+              disabled={loading || awaitingCreation}
               className={`flex-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
                 incident.status === status
                   ? `${INCIDENT_STATUS_COLORS[status]} border-2 border-current`
