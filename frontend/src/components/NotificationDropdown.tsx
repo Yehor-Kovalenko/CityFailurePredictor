@@ -94,12 +94,14 @@ export default function NotificationDropdown({
 
     return (
         <div
-            className="absolute right-0 top-10 z-[10000] w-96 rounded-xl border border-dark-600 bg-white shadow-2xl overflow-hidden">
+            // Below sm the panel spans the viewport so it never overflows the
+            // left edge; from sm up it hangs off the bell icon.
+            className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-10 sm:w-96 z-[10000] rounded-xl border border-dark-600 bg-white shadow-2xl overflow-hidden">
             <div className="border-b px-4 py-3 font-semibold text-black">
                 Notifications
             </div>
 
-            <div className="max-h-96 overflow-y-auto">
+            <div className="max-h-[60dvh] sm:max-h-96 overflow-y-auto overscroll-contain">
                 {loading && (
                     <div className="p-4 text-center text-gray-500">
                         Loading...

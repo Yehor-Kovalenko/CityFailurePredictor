@@ -140,19 +140,25 @@ export function CreateIncidentModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100000]">
-      <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 max-h-[95vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-black">Create New Incident</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-[100000]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-incident-title"
+        className="bg-white rounded-t-xl sm:rounded-lg shadow-lg max-w-md w-full sm:mx-4 max-h-[95dvh] overflow-y-auto overscroll-contain pb-safe"
+      >
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b">
+          <h2 id="create-incident-title" className="text-xl font-semibold text-black">Create New Incident</h2>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="text-gray-400 hover:text-gray-600"
           >
             <X size={24} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {error}
@@ -212,7 +218,7 @@ export function CreateIncidentModal({
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Latitude (X)
@@ -247,7 +253,7 @@ export function CreateIncidentModal({
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col min-[360px]:flex-row gap-2">
             <button
               type="button"
               onClick={() => void locateMe()}

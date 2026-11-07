@@ -58,19 +58,20 @@ export function IncidentDashboard() {
   ).length;
 
   return (
-    <div className="min-h-screen to-gray-100">
-      <div className="max-w-6xl mx-auto p-4">
+    <div>
+      <div className="max-w-6xl mx-auto sm:p-4">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-4xl font-bold ">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <h1 className="text-2xl sm:text-4xl font-bold min-w-0">
               🏙️ City Failure Predictor
             </h1>
             <button
               onClick={loadIncidents}
               disabled={loading}
-              className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              className="shrink-0 p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
               title="Refresh incidents"
+              aria-label="Refresh incidents"
             >
               <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
             </button>
@@ -81,16 +82,16 @@ export function IncidentDashboard() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl hover:border-dark-500 transition-all p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm ">Total Incidents</p>
-                <p className="text-3xl font-bold ">
+                <p className="text-2xl sm:text-3xl font-bold ">
                   {incidents.length}
                 </p>
               </div>
-              <span className="text-4xl">📊</span>
+              <span className="text-3xl sm:text-4xl" aria-hidden="true">📊</span>
             </div>
           </div>
 
@@ -98,9 +99,9 @@ export function IncidentDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm">Open</p>
-                <p className="text-3xl font-bold text-red-600">{openCounts}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-red-600">{openCounts}</p>
               </div>
-              <span className="text-4xl">🔴</span>
+              <span className="text-3xl sm:text-4xl" aria-hidden="true">🔴</span>
             </div>
           </div>
 
@@ -108,11 +109,11 @@ export function IncidentDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm">In Progress</p>
-                <p className="text-3xl font-bold text-yellow-600">
+                <p className="text-2xl sm:text-3xl font-bold text-yellow-600">
                   {inProgressCounts}
                 </p>
               </div>
-              <span className="text-4xl">🟡</span>
+              <span className="text-3xl sm:text-4xl" aria-hidden="true">🟡</span>
             </div>
           </div>
 
@@ -120,11 +121,11 @@ export function IncidentDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm">Resolved</p>
-                <p className="text-3xl font-bold text-green-600">
+                <p className="text-2xl sm:text-3xl font-bold text-green-600">
                   {resolvedCounts}
                 </p>
               </div>
-              <span className="text-4xl">🟢</span>
+              <span className="text-3xl sm:text-4xl" aria-hidden="true">🟢</span>
             </div>
           </div>
         </div>
@@ -133,7 +134,7 @@ export function IncidentDashboard() {
         <div className="mb-6">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:shadow-lg transition-all"
+            className="flex w-full sm:w-auto items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:shadow-lg transition-all"
           >
             <Plus size={20} />
             Create New Incident
@@ -167,7 +168,7 @@ export function IncidentDashboard() {
               <p className="text-gray-600">Loading incidents...</p>
             </div>
           ) : incidents.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-md p-12 text-center">
+            <div className="bg-white rounded-lg shadow-md p-6 sm:p-12 text-center">
               <p className="text-gray-600 text-lg">No incidents found</p>
               <p className="text-gray-500 text-sm mt-2">
                 Create a new incident or adjust your filters

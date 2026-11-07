@@ -84,8 +84,8 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
   return (
     <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl hover:border-dark-500 transition-all p-4">
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-start gap-3 flex-1">
-          <span className="text-3xl">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <span className="text-3xl shrink-0" aria-hidden="true">
             {INCIDENT_TYPE_ICONS[incident.incidentType]}
           </span>
           <div className="flex-1 min-w-0">
@@ -100,8 +100,9 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
         <button
           onClick={() => handleDelete()}
           disabled={loading}
-          className="p-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+          className="shrink-0 p-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
           title="Delete incident"
+          aria-label="Delete incident"
         >
           <Trash2 size={18} />
         </button>
@@ -121,9 +122,9 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
       </div>
 
       <div className="mb-3 p-2 bg-gray-700 rounded text-sm">
-        <div className="flex items-center gap-2">
-          <span>📍</span>
-          <span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span aria-hidden="true">📍</span>
+          <span className="truncate">
             {incident.coordinates.x}, {incident.coordinates.y}
           </span>
         </div>
@@ -147,7 +148,8 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
             {formatTimestamp(incident.lastUpdated)}
           </div>
           <div>
-            <span className="font-medium">ID:</span> {incident.id}
+            <span className="font-medium">ID:</span>{" "}
+            <span className="break-all">{incident.id}</span>
           </div>
         </div>
       )}

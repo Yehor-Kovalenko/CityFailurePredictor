@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { HeartbeatFeed } from "./components/HeartbeatFeed";
@@ -98,6 +98,8 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNotificationsListOpen, setisNotificationsListOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [isFeedOpen, setIsFeedOpen] = useState(false);
+  const closeFeed = useCallback(() => setIsFeedOpen(false), []);
   const canAccessSettings = hasRole("ROLE_ADMIN");
 
   useEffect(() => {
@@ -148,7 +150,7 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-dark-950 text-white flex items-center justify-center">
+      <div className="min-h-dvh bg-dark-950 text-white flex items-center justify-center">
         Loading authentication...
       </div>
     );
@@ -177,7 +179,9 @@ function App() {
   );
 
   return (
-    <div className="flex h-screen bg-dark-950 overflow-hidden">
+    // Mobile: content on top, navigation as a bottom bar (flex-col-reverse).
+    // md and up: navigation rail on the left.
+    <div className="flex flex-col-reverse md:flex-row h-dvh bg-dark-950 overflow-hidden">
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
@@ -186,7 +190,7 @@ function App() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
         {/* Top Bar */}
         <TopBar
           searchQuery={searchQuery}
@@ -199,6 +203,8 @@ function App() {
           userEmail={session.user.email}
           userRole={session.user.role}
           isNotificationsListOpen={isNotificationsListOpen}
+          onFeedToggle={() => setIsFeedOpen((open) => !open)}
+          isFeedOpen={isFeedOpen}
           notificationDropdown={<NotificationDropdown
                   loadNotifications={async () => {
                     return await notificationService.getNotifications();
@@ -214,16 +220,16 @@ function App() {
           />
 
         {/* Main Layout */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 min-h-0 flex overflow-hidden">
           {/* Center Content */}
-          <div className="flex-1 overflow-auto flex flex-col gap-6 p-6">
+          <main className="flex-1 min-w-0 overflow-auto flex flex-col gap-4 sm:gap-6 p-3 sm:p-6">
             {activeTab === "dashboard" && (
               <>
                 {/* System Status Cards */}
                 <SystemHealth incidents={filteredIncidents} />
 
                 {/* Map View */}
-                <div className="flex-1 min-h-96">
+                <div className="flex-1 min-h-[60dvh] md:min-h-96">
                   <MapView
                     incidents={filteredIncidents}
                     selectedIncident={selectedIncident}
@@ -238,8 +244,8 @@ function App() {
             )}
 
             {activeTab === "analytics" && (
-              <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl p-6">
-                <h2 className="text-2xl font-bold text-white">Analytics</h2>
+              <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl p-4 sm:p-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">Analytics</h2>
                 <p className="text-dark-400 mt-4">
                   Analytics dashboard coming soon...
                 </p>
@@ -247,8 +253,8 @@ function App() {
             )}
 
             {activeTab === "settings" && (
-              <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl p-6">
-                <h2 className="text-2xl font-bold text-white">Settings</h2>
+              <div className="bg-gradient-to-br from-dark-700 to-dark-800 border border-dark-600 rounded-xl p-4 sm:p-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">Settings</h2>
                 {canAccessSettings ? (
                   <p className="text-dark-400 mt-4">
                     Settings page coming soon...
@@ -260,10 +266,15 @@ function App() {
                 )}
               </div>
             )}
-          </div>
+          </main>
 
           {/* Right Sidebar - Heartbeat Feed */}
-          <HeartbeatFeed incidents={filteredIncidents} alerts={[]} />
+          <HeartbeatFeed
+            incidents={filteredIncidents}
+            alerts={[]}
+            isOpen={isFeedOpen}
+            onClose={closeFeed}
+          />
         </div>
       </div>
 

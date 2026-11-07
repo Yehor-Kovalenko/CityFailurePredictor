@@ -8,14 +8,14 @@ interface LoginScreenProps {
 
 export function LoginScreen({ onLogin, loading, error }: LoginScreenProps) {
   return (
-    <div className="min-h-screen bg-dark-950 text-white flex items-center justify-center p-6">
-      <div className="w-full max-w-xl rounded-2xl border border-dark-700 bg-gradient-to-br from-dark-800 to-dark-900 p-8 shadow-2xl shadow-black/40">
+    <div className="min-h-dvh bg-dark-950 text-white flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-xl rounded-2xl border border-dark-700 bg-gradient-to-br from-dark-800 to-dark-900 shadow-2xl shadow-black/40 p-6 sm:p-8">
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
+          <div className="shrink-0 h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
             <ShieldCheck size={24} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">City Failure Predictor</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">City Failure Predictor</h1>
             <p className="text-dark-300">
               Sign in to access incidents and operations dashboard.
             </p>

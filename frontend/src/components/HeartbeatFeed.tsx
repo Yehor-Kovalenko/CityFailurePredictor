@@ -1,12 +1,14 @@
-import {AlertCircle, Info, Skull, XCircle} from "lucide-react";
+import {AlertCircle, Info, Skull, X, XCircle} from "lucide-react";
 import { EventFeedItem, EventFeedItemLevel, Incident } from "../types";
 import { formatTimestamp } from "../utils/formatters";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {useSubscribe} from "@/utils/eventBroker.ts";
 
 interface HeartbeatFeedProps {
   incidents: Incident[];
   alerts: unknown[];
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 
@@ -35,7 +37,7 @@ const eventLevelConfig = {
 };
 
 
-export function HeartbeatFeed({ incidents }: HeartbeatFeedProps) {
+export function HeartbeatFeed({ incidents, isOpen = false, onClose }: HeartbeatFeedProps) {
   const openIncidents = incidents
     .filter((i) => i.status === "OPEN")
     .slice(0, 5);
@@ -53,11 +55,50 @@ export function HeartbeatFeed({ incidents }: HeartbeatFeedProps) {
     setEventsFeed(prev => [data, ...prev]);
   });
 
+  useEffect(() => {
+    if (!isOpen || !onClose) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   return (
-    <div className="w-80 bg-gradient-to-b from-dark-800 to-dark-900 border-l border-dark-700 flex flex-col overflow-hidden">
+    <>
+      {isOpen && (
+        <div
+          data-testid="heartbeat-feed-backdrop"
+          className="fixed inset-0 z-[10001] bg-black/50 xl:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+    <aside
+      id="heartbeat-feed"
+      aria-label="Heartbeat feed"
+      className={`fixed inset-y-0 right-0 z-[10002] w-full max-w-xs sm:max-w-sm transform transition-transform duration-200 ease-out
+        ${isOpen ? "translate-x-0" : "translate-x-full invisible"}
+        xl:visible xl:static xl:z-auto xl:w-80 xl:max-w-none xl:translate-x-0 xl:shrink-0
+        bg-gradient-to-b from-dark-800 to-dark-900 border-l border-dark-700 flex flex-col overflow-hidden pt-safe pb-safe`}
+    >
       {/* Header */}
-      <div className="border-b border-dark-700 px-6 py-4">
+      <div className="border-b border-dark-700 px-6 py-4 flex items-center justify-between">
         <h2 className="text-lg font-bold text-white">HEARTBEAT FEED</h2>
+        {onClose && (
+          <button
+            onClick={onClose}
+            aria-label="Close activity feed"
+            className="xl:hidden p-1 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -134,6 +175,7 @@ export function HeartbeatFeed({ incidents }: HeartbeatFeedProps) {
           </div>
         </div>
       </div>
-    </div>
+    </aside>
+    </>
   );
 }
