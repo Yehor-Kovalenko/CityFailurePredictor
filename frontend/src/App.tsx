@@ -12,6 +12,7 @@ import { useAuth } from "./auth/AuthContext";
 import {IncidentDashboard} from "./components/IncidentDashboard.tsx";
 import NotificationDropdown from "@/components/NotificationDropdown.tsx";
 import {publish} from "@/utils/eventBroker.ts";
+import {useHideSplash} from "./hooks/useHideSplash";
 
 const MOCK_INCIDENTS: Incident[] = [
   {
@@ -101,6 +102,7 @@ function App() {
   const [isFeedOpen, setIsFeedOpen] = useState(false);
   const closeFeed = useCallback(() => setIsFeedOpen(false), []);
   const canAccessSettings = hasRole("ROLE_ADMIN");
+  useHideSplash(!isLoading);
 
   useEffect(() => {
     if (activeTab === "settings" && !canAccessSettings) {
