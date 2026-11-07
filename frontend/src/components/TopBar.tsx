@@ -1,6 +1,7 @@
 import {Activity, Bell, LogOut, Plus, Search} from "lucide-react";
 import {UserRole} from "../types";
 import React from "react";
+import {ConnectionStatus} from "./ConnectionStatus";
 
 interface TopBarProps {
     searchQuery: string;
@@ -62,6 +63,8 @@ export function TopBar({
                     <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>3
                     <span className="hidden md:inline">Predictive Warnings</span>
                 </div>
+
+                <ConnectionStatus/>
 
                 {onFeedToggle && (
                     <button

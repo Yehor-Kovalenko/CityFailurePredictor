@@ -61,3 +61,23 @@ export async function bootstrapApp(page: Page): Promise<void> {
   await page.route(/\/notifications$/, (route) => route.fulfill({ json: NOTIFICATIONS }));
   await page.route(/tile\.openstreetmap\.org|cdnjs\.cloudflare\.com/, (route) => route.abort());
 }
+
+export const API_ORIGIN = "http://localhost:9191";
+const API_PATTERN = /^http:\/\/localhost:9191\//;
+
+export async function cutApi(page: Page): Promise<void> {
+  await page.route(API_PATTERN, (route) => route.abort("internetdisconnected"));
+}
+
+export async function restoreApi(page: Page): Promise<void> {
+  await page.unroute(API_PATTERN);
+}
+
+/** Waits until a service worker controls the page, so later loads are served from its cache. */
+export async function waitForServiceWorker(page: Page): Promise<void> {
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  if (!(await page.evaluate(() => Boolean(navigator.serviceWorker.controller)))) {
+    await page.reload();
+    await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  }
+}

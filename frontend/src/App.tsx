@@ -7,11 +7,15 @@ import { SystemHealth } from "./components/SystemHealth";
 import { CreateIncidentModal } from "./components/CreateIncidentModal";
 import { LoginScreen } from "./components/LoginScreen";
 import { Incident } from "./types";
-import {incidentService, notificationService} from "./services/api";
+import {incidentRepository, notificationRepository} from "./offline/repository";
+import {clearSnapshots} from "./offline/snapshots";
+import {useSyncStatus} from "./hooks/useSyncStatus";
+import {OfflineBanner} from "./components/OfflineBanner";
 import { useAuth } from "./auth/AuthContext";
 import {IncidentDashboard} from "./components/IncidentDashboard.tsx";
 import NotificationDropdown from "@/components/NotificationDropdown.tsx";
 import {publish} from "@/utils/eventBroker.ts";
+import {useHideSplash} from "./hooks/useHideSplash";
 
 const MOCK_INCIDENTS: Incident[] = [
   {
@@ -100,7 +104,10 @@ function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isFeedOpen, setIsFeedOpen] = useState(false);
   const closeFeed = useCallback(() => setIsFeedOpen(false), []);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
   const canAccessSettings = hasRole("ROLE_ADMIN");
+  const {online, pending} = useSyncStatus();
+  useHideSplash(!isLoading);
 
   useEffect(() => {
     if (activeTab === "settings" && !canAccessSettings) {
@@ -125,28 +132,38 @@ function App() {
   };
 
   const handleLogout = async () => {
+    const owner = session?.user.email;
     await logout();
+    if (owner) {
+      await clearSnapshots(owner).catch(() => undefined);
+    }
     setIncidents(MOCK_INCIDENTS);
     setSelectedIncident(null);
     setActiveTab("dashboard");
   };
 
-  const loadIncidents = async () => {
+  const loadIncidents = useCallback(async () => {
     try {
-      const data = await incidentService.getAllIncidents();
-      setIncidents(data);
+      const result = await incidentRepository.getAll();
+      setIncidents(result.data);
+      setCachedAt(result.fromCache ? result.savedAt : null);
     } catch (error) {
       console.error("Failed to load incidents:", error);
     }
-  };
+  }, []);
+
+  const loadNotifications = useCallback(
+    async () => (await notificationRepository.getAll()).data,
+    [],
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {
       return;
     }
 
-    loadIncidents();
-  }, [isAuthenticated]);
+    void loadIncidents();
+  }, [isAuthenticated, loadIncidents, online, pending]);
 
   if (isLoading) {
     return (
@@ -206,11 +223,9 @@ function App() {
           onFeedToggle={() => setIsFeedOpen((open) => !open)}
           isFeedOpen={isFeedOpen}
           notificationDropdown={<NotificationDropdown
-                  loadNotifications={async () => {
-                    return await notificationService.getNotifications();
-                  }}
+                  loadNotifications={loadNotifications}
                   markAsRead={async (id) => {
-                    await notificationService.markNotificationAsRead(id);
+                    await notificationRepository.markAsRead(id);
                     publish("events_feed", {
                       "title": "Notification marked as read"
                     })
@@ -223,6 +238,7 @@ function App() {
         <div className="flex-1 min-h-0 flex overflow-hidden">
           {/* Center Content */}
           <main className="flex-1 min-w-0 overflow-auto flex flex-col gap-4 sm:gap-6 p-3 sm:p-6">
+            <OfflineBanner online={online} cachedAt={cachedAt} pending={pending} />
             {activeTab === "dashboard" && (
               <>
                 {/* System Status Cards */}

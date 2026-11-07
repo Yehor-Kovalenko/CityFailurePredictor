@@ -4,13 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Incident } from "@/types";
 import { IncidentCard } from "@/components/IncidentCard";
 
-const { updateIncidentStatus, deleteIncident } = vi.hoisted(() => ({
-  updateIncidentStatus: vi.fn(),
-  deleteIncident: vi.fn(),
+const { updateStatus, remove } = vi.hoisted(() => ({
+  updateStatus: vi.fn(),
+  remove: vi.fn(),
 }));
 
-vi.mock("@/services/api", () => ({
-  incidentService: { updateIncidentStatus, deleteIncident },
+vi.mock("@/offline/repository", () => ({
+  incidentRepository: { updateStatus, remove },
 }));
 
 const incident: Incident = {
@@ -26,8 +26,8 @@ const incident: Incident = {
 
 describe("IncidentCard", () => {
   beforeEach(() => {
-    updateIncidentStatus.mockResolvedValue({ ...incident, status: "RESOLVED" });
-    deleteIncident.mockResolvedValue(undefined);
+    updateStatus.mockResolvedValue({ data: { ...incident, status: "RESOLVED" }, queued: false });
+    remove.mockResolvedValue({ data: undefined, queued: false });
   });
 
   afterEach(() => {
@@ -61,7 +61,7 @@ describe("IncidentCard", () => {
 
     await user.click(screen.getByRole("button", { name: "Set status RESOLVED" }));
 
-    expect(updateIncidentStatus).toHaveBeenCalledWith("incident-1", { status: "RESOLVED" });
+    expect(updateStatus).toHaveBeenCalledWith(incident, "RESOLVED");
     expect(onUpdate).toHaveBeenCalledOnce();
   });
 
@@ -71,7 +71,7 @@ describe("IncidentCard", () => {
 
     await user.click(screen.getByRole("button", { name: "Set status OPEN" }));
 
-    expect(updateIncidentStatus).not.toHaveBeenCalled();
+    expect(updateStatus).not.toHaveBeenCalled();
   });
 
   it("deletes the incident only after confirmation", async () => {
@@ -81,11 +81,31 @@ describe("IncidentCard", () => {
     render(<IncidentCard incident={incident} onUpdate={onUpdate} />);
 
     await user.click(screen.getByRole("button", { name: "Delete incident" }));
-    expect(deleteIncident).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Delete incident" }));
     expect(confirm).toHaveBeenCalledTimes(2);
-    expect(deleteIncident).toHaveBeenCalledWith("incident-1");
+    expect(remove).toHaveBeenCalledWith("incident-1");
     expect(onUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("marks incidents with unsynchronized changes", () => {
+    render(<IncidentCard incident={{ ...incident, pendingSync: true }} onUpdate={vi.fn()} />);
+
+    expect(screen.getByText("Pending sync")).toBeInTheDocument();
+  });
+
+  it("locks status changes of an incident created offline until it is synchronized", () => {
+    render(
+      <IncidentCard
+        incident={{ ...incident, id: "local-123", pendingSync: true }}
+        onUpdate={vi.fn()}
+      />,
+    );
+
+    for (const status of ["OPEN", "IN_PROGRESS", "RESOLVED"]) {
+      expect(screen.getByRole("button", { name: `Set status ${status}` })).toBeDisabled();
+    }
+    expect(screen.getByRole("button", { name: "Delete incident" })).toBeEnabled();
   });
 });
