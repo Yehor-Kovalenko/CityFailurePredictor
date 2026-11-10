@@ -201,17 +201,17 @@ CI result                          Observability check
 | :--- | :--- |
 | Backend (Java) | `./mvnw verify`: build, JUnit tests, JaCoCo coverage |
 | AI service (Python) | `ruff check` lint, `pytest` with `pytest-cov` |
-| Frontend | ESLint, Vitest with coverage, type check and production build |
+| Frontend | ESLint, Vitest, type check and production build |
 
 * A failing test fails the job, and the **CI result** check (required for merging) fails with it.
 * On pull requests only the changed components are built; outdated PR runs are cancelled.
-* Test reports appear as checks on the PR, coverage in the run **Summary**, and raw reports as `*-test-reports` artifacts (kept for 14 days).
+* Test reports appear as checks on the PR, backend and AI coverage in the run **Summary** (informational, it never fails the build), and raw reports as `*-test-reports` artifacts (kept for 14 days).
 
 ---
 
 ## 🔍 Code Quality (SonarQube)
 
-Every PR and push to `main` is analysed by SonarQube Cloud (`sonar-project.properties`) in the `sonarqube-scan` job of `ci.yml`. It runs after the test jobs and uploads their coverage reports (JaCoCo, pytest-cov, Vitest lcov) with the analysis. The scanner waits for the **Quality Gate** result (`sonar.qualitygate.wait`) and fails the job if the gate is not passed:
+Every PR and push to `main` is analysed by SonarQube Cloud (`sonar-project.properties`) in the `sonarqube-scan` job of `ci.yml`. It runs after the test jobs. Code coverage is not part of the analysis (`sonar.coverage.exclusions=**/*`), so the Quality Gate checks bugs, vulnerabilities, code smells and duplication, not coverage. The scanner waits for the **Quality Gate** result (`sonar.qualitygate.wait`) and fails the job if the gate is not passed:
 
 * on a pull request the **CI result** check fails, so the PR cannot be merged;
 * on `main` no image is built or published, because `prepare` depends on `sonarqube-scan`.

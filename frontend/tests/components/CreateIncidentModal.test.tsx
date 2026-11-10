@@ -8,8 +8,8 @@ const { createIncident } = vi.hoisted(() => ({
   createIncident: vi.fn(),
 }));
 
-vi.mock("@/services/api", () => ({
-  incidentService: { createIncident },
+vi.mock("@/offline/repository", () => ({
+  incidentRepository: { create: createIncident },
 }));
 
 function renderModal(isOpen = true) {
@@ -39,7 +39,7 @@ describe("CreateIncidentModal", () => {
 
   it("creates the incident and closes", async () => {
     const user = userEvent.setup();
-    createIncident.mockResolvedValue(undefined);
+    createIncident.mockResolvedValue({ data: {}, queued: false });
     const { onClose, onSuccess } = renderModal();
 
     await fillForm(user);

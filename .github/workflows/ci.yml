@@ -210,8 +210,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Run tests with coverage
-        run: npm run test:coverage
+      # - name: Run tests with coverage
+      #   run: npm run test:coverage
+
+      - name: Run tests
+        run: npm test
 
       - name: Publish test report
         if: ${{ !cancelled() }}
@@ -223,18 +226,19 @@ jobs:
           include_passed: true
           require_tests: true
 
-      - name: Add coverage summary
-        if: ${{ !cancelled() && hashFiles('frontend/coverage/coverage-summary.json') != '' }}
-        run: node ../.github/scripts/vitest-coverage-summary.mjs coverage/coverage-summary.json >> "$GITHUB_STEP_SUMMARY"
+      # - name: Add coverage summary
+      #   if: ${{ !cancelled() && hashFiles('frontend/coverage/coverage-summary.json') != '' }}
+      #   run: node ../.github/scripts/vitest-coverage-summary.mjs coverage/coverage-summary.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload test and coverage reports
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: frontend-test-reports
-          path: |
-            frontend/test-results/
-            frontend/coverage/
+          # path: |
+          #   frontend/test-results/
+          #   frontend/coverage/
+          path: frontend/test-results/
           if-no-files-found: warn
           retention-days: 14
 

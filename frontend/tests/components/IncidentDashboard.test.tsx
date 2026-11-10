@@ -8,8 +8,14 @@ const { getAllIncidents } = vi.hoisted(() => ({
   getAllIncidents: vi.fn(),
 }));
 
-vi.mock("@/services/api", () => ({
-  incidentService: { getAllIncidents },
+vi.mock("@/offline/repository", () => ({
+  incidentRepository: {
+    getAll: async (...args: unknown[]) => ({
+      data: await getAllIncidents(...args),
+      fromCache: false,
+      savedAt: Date.now(),
+    }),
+  },
 }));
 
 function incident(id: string, status: Incident["status"]): Incident {
