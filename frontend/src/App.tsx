@@ -6,7 +6,7 @@ import { MapView } from "./components/MapView";
 import { SystemHealth } from "./components/SystemHealth";
 import { CreateIncidentModal } from "./components/CreateIncidentModal";
 import { LoginScreen } from "./components/LoginScreen";
-import { Incident } from "./types";
+import { EventFeedItem, EventFeedItemLevel, Incident } from "./types";
 import {incidentRepository, notificationRepository} from "./offline/repository";
 import {clearSnapshots} from "./offline/snapshots";
 import {useSyncStatus} from "./hooks/useSyncStatus";
@@ -16,6 +16,7 @@ import {IncidentDashboard} from "./components/IncidentDashboard.tsx";
 import NotificationDropdown from "@/components/NotificationDropdown.tsx";
 import {publish} from "@/utils/eventBroker.ts";
 import {useHideSplash} from "./hooks/useHideSplash";
+import {disablePush, OPEN_NOTIFICATIONS_PARAM, syncPushSubscription} from "./notifications/alertNotifications";
 
 const MOCK_INCIDENTS: Incident[] = [
   {
@@ -100,7 +101,9 @@ function App() {
     null,
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isNotificationsListOpen, setisNotificationsListOpen] = useState(false);
+  const [isNotificationsListOpen, setisNotificationsListOpen] = useState(() =>
+    new URLSearchParams(window.location.search).has(OPEN_NOTIFICATIONS_PARAM),
+  );
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isFeedOpen, setIsFeedOpen] = useState(false);
   const closeFeed = useCallback(() => setIsFeedOpen(false), []);
@@ -108,6 +111,38 @@ function App() {
   const canAccessSettings = hasRole("ROLE_ADMIN");
   const {online, pending} = useSyncStatus();
   useHideSplash(!isLoading);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      syncPushSubscription().catch((error) =>
+        console.error("Failed to sync push subscription:", error),
+      );
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has(OPEN_NOTIFICATIONS_PARAM)) {
+      url.searchParams.delete(OPEN_NOTIFICATIONS_PARAM);
+      window.history.replaceState(null, "", url);
+    }
+
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data?.type === "OPEN_NOTIFICATIONS") {
+        setisNotificationsListOpen(true);
+      }
+      if (event.data?.type === "ALERT_RECEIVED") {
+        publish<EventFeedItem>("event_feed", {
+          title: event.data.title,
+          summary: event.data.body,
+          eventLevel: EventFeedItemLevel.WARNING,
+          timestamp: Date.now(),
+        });
+      }
+    };
+    navigator.serviceWorker?.addEventListener("message", handleServiceWorkerMessage);
+    return () => navigator.serviceWorker?.removeEventListener("message", handleServiceWorkerMessage);
+  }, []);
 
   useEffect(() => {
     if (activeTab === "settings" && !canAccessSettings) {
@@ -133,6 +168,9 @@ function App() {
 
   const handleLogout = async () => {
     const owner = session?.user.email;
+    await disablePush().catch((error) =>
+      console.error("Failed to remove push subscription:", error),
+    );
     await logout();
     if (owner) {
       await clearSnapshots(owner).catch(() => undefined);

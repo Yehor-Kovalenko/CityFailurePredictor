@@ -195,6 +195,19 @@ CI result                          Observability check
 
 ---
 
+## 🔔 Push notifications
+
+Alerts are delivered as Web Push notifications when VAPID keys are configured; without them the rest of the system works and the "Enable alerts" button has no effect.
+
+```bash
+cp .env.example .env
+npx --yes web-push generate-vapid-keys
+```
+
+Put the generated keys into `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in `.env` (ignored by git) and restart `notification-service`.
+
+---
+
 ## 🧪 Build & Tests
 
 | Component | What runs |

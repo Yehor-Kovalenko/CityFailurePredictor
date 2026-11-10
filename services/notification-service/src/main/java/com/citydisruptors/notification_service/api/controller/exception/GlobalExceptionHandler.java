@@ -3,6 +3,8 @@ package com.citydisruptors.notification_service.api.controller.exception;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -23,6 +25,14 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse("BAD_REQUEST", ex.getMessage(), LocalDateTime.now()));
+    }
+
+    @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
+    public ResponseEntity<ErrorResponse> handleInvalidRequest(Exception ex) {
+        registry.counter("app.errors.total", "service", "notification-service", "type", "bad_request").increment();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("BAD_REQUEST", "Invalid request body", LocalDateTime.now()));
     }
 
     @ExceptionHandler(Exception.class)

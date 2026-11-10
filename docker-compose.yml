@@ -427,6 +427,9 @@ services:
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       LOG_FILE: /var/log/services/notification-service.log
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:alerts@city-failure-predictor.example}
       <<: *mtls-environment
     depends_on:
       certs-init:

@@ -99,6 +99,10 @@ public class RouteAuthorizationService {
         /*
          * Notification Service
          */
+        if (path.equals("/notifications/push/subscriptions")) {
+            return method == HttpMethod.POST || method == HttpMethod.DELETE;
+        }
+
         if (path.equals("/notifications") || path.startsWith("/notifications/") || path.startsWith("/notification-service/")) {
             return method == HttpMethod.GET || method == HttpMethod.PATCH;
         }
