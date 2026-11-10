@@ -6,7 +6,7 @@ import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public record PhotoDataUrl(String contentType, byte[] data) {
+public final class PhotoDataUrl {
 
     public static final int MAX_BYTES = 2 * 1024 * 1024;
 
@@ -17,6 +17,22 @@ public record PhotoDataUrl(String contentType, byte[] data) {
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
     private static final byte[] RIFF = "RIFF".getBytes(StandardCharsets.US_ASCII);
     private static final byte[] WEBP = "WEBP".getBytes(StandardCharsets.US_ASCII);
+
+    private final String contentType;
+    private final byte[] data;
+
+    private PhotoDataUrl(String contentType, byte[] data) {
+        this.contentType = contentType;
+        this.data = data;
+    }
+
+    public String contentType() {
+        return contentType;
+    }
+
+    public byte[] data() {
+        return data.clone();
+    }
 
     public static PhotoDataUrl parse(String value) {
         if (value.length() > MAX_DATA_URL_LENGTH) {
