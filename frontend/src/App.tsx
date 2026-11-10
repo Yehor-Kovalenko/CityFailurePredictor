@@ -6,7 +6,8 @@ import { MapView } from "./components/MapView";
 import { SystemHealth } from "./components/SystemHealth";
 import { CreateIncidentModal } from "./components/CreateIncidentModal";
 import { LoginScreen } from "./components/LoginScreen";
-import { EventFeedItem, EventFeedItemLevel, Incident } from "./types";
+import { EventFeedItem, EventFeedItemLevel, Incident, Notification, NotificationStatus } from "./types";
+import {updateAppBadge} from "./capabilities/appBadge";
 import {incidentRepository, notificationRepository} from "./offline/repository";
 import {clearSnapshots} from "./offline/snapshots";
 import {useSyncStatus} from "./hooks/useSyncStatus";
@@ -112,13 +113,28 @@ function App() {
   const {online, pending} = useSyncStatus();
   useHideSplash(!isLoading);
 
+  const showUnreadOnBadge = useCallback(
+    (notifications: Notification[]) =>
+      updateAppBadge(notifications.filter((n) => n.status === NotificationStatus.UNREAD).length),
+    [],
+  );
+
+  const refreshAppBadge = useCallback(async () => {
+    try {
+      await showUnreadOnBadge((await notificationRepository.getAll()).data);
+    } catch (error) {
+      console.error("Failed to refresh app badge:", error);
+    }
+  }, [showUnreadOnBadge]);
+
   useEffect(() => {
     if (isAuthenticated) {
       syncPushSubscription().catch((error) =>
         console.error("Failed to sync push subscription:", error),
       );
+      void refreshAppBadge();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, refreshAppBadge]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -138,11 +154,12 @@ function App() {
           eventLevel: EventFeedItemLevel.WARNING,
           timestamp: Date.now(),
         });
+        void refreshAppBadge();
       }
     };
     navigator.serviceWorker?.addEventListener("message", handleServiceWorkerMessage);
     return () => navigator.serviceWorker?.removeEventListener("message", handleServiceWorkerMessage);
-  }, []);
+  }, [refreshAppBadge]);
 
   useEffect(() => {
     if (activeTab === "settings" && !canAccessSettings) {
@@ -172,6 +189,7 @@ function App() {
       console.error("Failed to remove push subscription:", error),
     );
     await logout();
+    await updateAppBadge(0);
     if (owner) {
       await clearSnapshots(owner).catch(() => undefined);
     }
@@ -190,10 +208,11 @@ function App() {
     }
   }, []);
 
-  const loadNotifications = useCallback(
-    async () => (await notificationRepository.getAll()).data,
-    [],
-  );
+  const loadNotifications = useCallback(async () => {
+    const { data } = await notificationRepository.getAll();
+    await showUnreadOnBadge(data);
+    return data;
+  }, [showUnreadOnBadge]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -264,6 +283,7 @@ function App() {
                   loadNotifications={loadNotifications}
                   markAsRead={async (id) => {
                     await notificationRepository.markAsRead(id);
+                    void refreshAppBadge();
                     publish("events_feed", {
                       "title": "Notification marked as read"
                     })

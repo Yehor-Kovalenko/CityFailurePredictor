@@ -24,6 +24,9 @@ self.addEventListener("push", (event) => {
         timestamp: Date.now(),
         data: { url: ALERT_URL },
       }),
+      typeof alert.unreadCount === "number" && "setAppBadge" in self.navigator
+        ? self.navigator.setAppBadge(alert.unreadCount).catch(() => undefined)
+        : Promise.resolve(),
       self.clients
         .matchAll({ type: "window" })
         .then((windows) =>

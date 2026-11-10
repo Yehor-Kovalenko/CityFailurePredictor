@@ -94,3 +94,14 @@ alert (Kafka) -> notification-service -> push service (FCM / Mozilla / Apple / W
 - The button is hidden when the browser has no Push API; a blocked permission is explained instead.
 
 Server side (`services/notification-service`, package `push`): payload encryption (RFC 8291, `aes128gcm`) and VAPID signing (RFC 8292) use the JDK only. Messages are sent asynchronously after the notification is committed, severity maps to the `Urgency` header, and subscriptions reported as gone (404 / 410) are deleted. Only https endpoints of known push services are accepted. Metric: `notifications_push_deliveries_total{result}`.
+
+## Project Fugu capabilities
+
+Two web capabilities from [Project Fugu](https://developer.chrome.com/docs/capabilities) bring native app behaviour to the PWA. Both are progressive enhancements: browsers without them keep working.
+
+| Capability | Where | What it does |
+|---|---|---|
+| [Badging API](https://developer.chrome.com/docs/capabilities/web-apis/badging-api) | `src/capabilities/appBadge.ts`, `public/notification-sw.js` | The icon of the installed app shows the number of unread alerts. The service worker sets it from `unreadCount` in each push message, also when the app is closed; the app recalculates it when notifications load, when one is marked as read and on start-up, and clears it on logout |
+| [Web Share API](https://developer.chrome.com/docs/capabilities/web-apis/web-share) | `src/capabilities/shareIncident.ts`, `IncidentCard` | The "Share incident" button opens the system share sheet with the incident title, type, status, summary and an OpenStreetMap link to its location. Without the API the same text is copied to the clipboard |
+
+The badge is shown only for the installed app (Chrome / Edge on desktop: install icon in the address bar; Safari on iOS / macOS: Add to Dock / Home Screen) with notification permission granted.
