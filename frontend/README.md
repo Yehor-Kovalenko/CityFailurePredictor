@@ -12,6 +12,7 @@ React 18 + TypeScript + Vite + Tailwind CSS.
 | `npm test` / `npm run test:coverage` | Unit and component tests (Vitest, jsdom) |
 | `npm run test:e2e` | End-to-end suite: responsive layout, PWA, offline and update checks (Playwright, Chromium) |
 | `npm run test:e2e:ui` | The same suite in Playwright's interactive UI |
+| `npm run lighthouse` | Lighthouse audit of the production build (run `npm run build` first); reports in `lighthouse-report/` |
 | `npm run generate-pwa-assets` | Regenerates the PWA icon set from `public/favicon.svg` |
 
 Before the first e2e run install the browser once: `npx playwright install chromium`.
@@ -115,3 +116,23 @@ Incidents combine text (title, description, type, status, location) with an opti
 - **Display.** Cards show a thumbnail (`IncidentPhoto`); clicking it opens the photo at full size in a scrollable viewer. Photos are fetched with the user's token and cached by the service worker (`incident-photos`, stale-while-revalidate, 200 photos / 30 days), so photos seen once are available offline.
 
 Server side (`services/incident-service`): the optional `photo` field of `POST /incidents` takes a base64 data URL of a JPEG, PNG or WebP image up to 2 MB. The declared type must match the file signature, otherwise the request is rejected with 400. Photos are stored in `incident_photos` (Flyway V3, deleted together with the incident), incidents report `hasPhoto`, and `GET /incidents/{id}/photo` serves the image with `X-Content-Type-Options: nosniff` and a private 7-day cache.
+
+## Lighthouse
+
+The app is audited with [Lighthouse](https://developer.chrome.com/docs/lighthouse) through [Lighthouse CI](https://github.com/GoogleChrome/lighthouse-ci) (`lighthouserc.json`).
+
+- `npm run lighthouse` serves the production build with `vite preview`, audits it three times with mobile emulation and asserts on the median run: performance at least 90, accessibility, best practices and SEO 100. HTML and JSON reports are written to `lighthouse-report/`.
+- CI runs the same audit in the `frontend-lighthouse` job on every change to the frontend. A score below the threshold fails the job and blocks the merge through the "CI result" check. Scores are shown in the run summary and the reports are uploaded as the `frontend-lighthouse-report` artifact.
+- The automated audit covers the page a visitor gets without a session (sign-in screen and app shell). To audit the dashboard, sign in to the running app and use the Lighthouse panel in Chrome DevTools.
+
+Results (Lighthouse 13, production build):
+
+| Page | Device | Performance | Accessibility | Best practices | SEO |
+|---|---|---:|---:|---:|---:|
+| Sign-in | Mobile | 99 | 100 | 100 | 100 |
+| Sign-in | Desktop | 100 | 100 | 100 | 100 |
+| Dashboard | Mobile, repeat visit | 100 | 100 | 100 | 100 |
+| Dashboard | Mobile, first visit | 84 | 100 | 100 | 100 |
+| Dashboard | Desktop | 100 | 100 | 100 | 100 |
+
+Fixed after the first audit: the sign-in screen has a `main` landmark, `robots.txt` exists (the SPA fallback used to answer it with HTML), and map tiles are loaded in retina resolution on high-density screens (`detectRetina`). On a first mobile visit the largest element is an OpenStreetMap tile, so that score depends on the external tile server; the service worker caches tiles, which brings repeat visits to 100.

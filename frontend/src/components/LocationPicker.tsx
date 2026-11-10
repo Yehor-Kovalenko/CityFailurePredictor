@@ -31,6 +31,7 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="&copy; OpenStreetMap contributors"
+          detectRetina
         />
         <ClickToMove onChange={onChange} />
         {value && (

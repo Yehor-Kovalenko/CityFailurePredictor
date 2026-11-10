@@ -10,6 +10,8 @@ coverage/
 test-results/
 e2e-results/
 playwright-report/
+.lighthouseci/
+lighthouse-report/
 
 # TypeScript incremental build info
 *.tsbuildinfo

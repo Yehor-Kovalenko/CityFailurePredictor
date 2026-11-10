@@ -13,6 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "lighthouse": "lhci autorun",
     "generate-pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@lhci/cli": "0.16.0",
     "@playwright/test": "^1.64.1",
     "@tailwindcss/forms": "^0.5.6",
     "@testing-library/dom": "^10.4.2",
