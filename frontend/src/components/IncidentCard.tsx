@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CheckCircle, AlertCircle, Clock, UploadCloud, Trash2, Share2 } from "lucide-react";
 import {shareIncident} from "@/capabilities/shareIncident";
+import {IncidentPhoto} from "./IncidentPhoto";
 import { Incident, IncidentStatus } from "../types";
 import {incidentRepository} from "../offline/repository";
 import {isLocalId} from "../offline/outbox";
@@ -141,6 +142,8 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
           </button>
         </div>
       </div>
+
+      <IncidentPhoto incident={incident} />
 
       <div className="flex flex-wrap gap-2 mb-3">
         {incident.pendingSync && (

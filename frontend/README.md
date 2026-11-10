@@ -105,3 +105,13 @@ Two web capabilities from [Project Fugu](https://developer.chrome.com/docs/capab
 | [Web Share API](https://developer.chrome.com/docs/capabilities/web-apis/web-share) | `src/capabilities/shareIncident.ts`, `IncidentCard` | The "Share incident" button opens the system share sheet with the incident title, type, status, summary and an OpenStreetMap link to its location. Without the API the same text is copied to the clipboard |
 
 The badge is shown only for the installed app (Chrome / Edge on desktop: install icon in the address bar; Safari on iOS / macOS: Add to Dock / Home Screen) with notification permission granted.
+
+## Incident photos
+
+Incidents combine text (title, description, type, status, location) with an optional photo.
+
+- **Capture.** "Take or choose a photo" in the create-incident dialog opens the camera or the gallery on phones and a file picker on desktop. The browser scales the image to at most 1280 px, applies the EXIF orientation and encodes it as JPEG (`src/utils/image.ts`), so a multi-megabyte camera photo becomes a few hundred kilobytes before it is sent.
+- **Offline.** The photo is part of the create request, so an incident reported offline keeps its photo in the outbox and both are sent together when the connection returns. Until then the card shows the local copy.
+- **Display.** Cards show a thumbnail (`IncidentPhoto`); clicking it opens the photo at full size in a scrollable viewer. Photos are fetched with the user's token and cached by the service worker (`incident-photos`, stale-while-revalidate, 200 photos / 30 days), so photos seen once are available offline.
+
+Server side (`services/incident-service`): the optional `photo` field of `POST /incidents` takes a base64 data URL of a JPEG, PNG or WebP image up to 2 MB. The declared type must match the file signature, otherwise the request is rejected with 400. Photos are stored in `incident_photos` (Flyway V3, deleted together with the incident), incidents report `hasPhoto`, and `GET /incidents/{id}/photo` serves the image with `X-Content-Type-Options: nosniff` and a private 7-day cache.

@@ -15,5 +15,6 @@ public record IncidentResponse(
         IncidentType incidentType,
         IncidentStatus status,
         Instant timestamp,
-        Instant lastUpdated
+        Instant lastUpdated,
+        boolean hasPhoto
 ) {}

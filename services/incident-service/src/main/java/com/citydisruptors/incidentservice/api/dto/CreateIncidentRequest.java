@@ -18,6 +18,8 @@ public record CreateIncidentRequest(
         Coordinates coordinates,
 
         @NotNull(message = "incidentType is required")
-        IncidentType incidentType
+        IncidentType incidentType,
+
+        String photo
 ) {
 }

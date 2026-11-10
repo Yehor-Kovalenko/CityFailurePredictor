@@ -22,6 +22,8 @@ export interface Incident {
   status: IncidentStatus;
   timestamp: string;
   lastUpdated: string;
+  hasPhoto?: boolean;
+  photo?: string;
   pendingSync?: boolean;
 }
 
@@ -30,6 +32,7 @@ export interface CreateIncidentRequest {
   incidentSummary: string;
   coordinates: Coordinates;
   incidentType: IncidentType;
+  photo?: string;
 }
 
 export interface UpdateIncidentStatusRequest {
