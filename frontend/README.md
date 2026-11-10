@@ -10,8 +10,9 @@ React 18 + TypeScript + Vite + Tailwind CSS.
 | `npm run build` | Type check and production build into `dist/` |
 | `npm run lint` | ESLint, zero warnings allowed |
 | `npm test` / `npm run test:coverage` | Unit and component tests (Vitest, jsdom) |
-| `npm run test:e2e` | Responsive end-to-end suite (Playwright, Chromium) |
+| `npm run test:e2e` | End-to-end suite: responsive layout and PWA checks (Playwright, Chromium) |
 | `npm run test:e2e:ui` | The same suite in Playwright's interactive UI |
+| `npm run generate-pwa-assets` | Regenerates the PWA icon set from `public/favicon.svg` |
 
 Before the first e2e run install the browser once: `npx playwright install chromium`.
 
@@ -36,3 +37,14 @@ Modals and dropdowns are bounded by the viewport (`dvh` units, safe-area insets 
 - the main controls, the activity feed, the notifications dropdown and the create-incident dialog are reachable.
 
 Full-page screenshots of every tab at every viewport are attached to the HTML report (`playwright-report/`). CI runs the suite in the `frontend-e2e` job and uploads the report as an artifact.
+
+## Splash screen and web app manifest
+
+Two complementary splash screens:
+
+- **In-page splash** - markup and critical CSS are inlined in `index.html`, so it paints on the first frame before any JavaScript loads (in the browser and in the installed app alike). `src/splash.ts` fades it out once the app is ready (session restored); it stays at least 600 ms after navigation start so it does not flash on fast loads, but never adds delay on slow ones. Animations are disabled for `prefers-reduced-motion`.
+- **System splash** - when the app is installed, the OS builds a launch screen from `public/manifest.webmanifest` (`name`, `background_color`, 512 px icon).
+
+Icons (64, 192, 512, maskable 512, Apple touch 180, `favicon.ico`) are generated from `public/favicon.svg` by `@vite-pwa/assets-generator` (`pwa-assets.config.ts`) and committed. nginx serves the manifest as `application/manifest+json` with `Cache-Control: no-cache`.
+
+`e2e/pwa.spec.ts` verifies the manifest fields, that every declared icon exists with its declared size, that Chrome reports no installability or manifest errors (via the DevTools Protocol), and that the splash is visible while the bundle loads and removed afterwards.
