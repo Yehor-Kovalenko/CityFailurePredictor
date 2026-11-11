@@ -8,3 +8,8 @@ spring:
   config:
     label: main
     import: "optional:configserver:http://config-server:8888"
+app:
+  push:
+    public-key: ${VAPID_PUBLIC_KEY:}
+    private-key: ${VAPID_PRIVATE_KEY:}
+    subject: ${VAPID_SUBJECT:mailto:alerts@city-failure-predictor.example}

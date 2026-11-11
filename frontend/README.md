@@ -80,3 +80,17 @@ A new release must never lose unsynchronized changes or cached data:
   - the app starts offline from the service worker cache and shows the saved incidents;
   - an incident created and another deleted offline are queued and reach the server when the connection returns;
   - an update is simulated by `e2e/releaseServer.ts`, which serves `dist/` and can change `sw.js` like a new deployment. The test queues a change, deploys a new release, accepts the update prompt, and checks that the new version runs with the queued change and cached incidents intact and still syncs them.
+
+## Alert notifications
+
+New infrastructure alerts reach the user as system notifications through Web Push, also when the app is closed.
+
+```
+alert (Kafka) -> notification-service -> push service (FCM / Mozilla / Apple / WNS) -> service worker -> system notification
+```
+
+- The "Enable alerts" button in the notifications panel asks for permission, subscribes with the server's VAPID public key (`GET /notifications/push/public-key`) and stores the subscription (`POST /notifications/push/subscriptions`). On every start the app re-sends its subscription and replaces it if the server key changed. Logging out removes it (`DELETE /notifications/push/subscriptions`).
+- `public/notification-sw.js` is loaded into the Workbox service worker via `importScripts`. It shows the notification (critical alerts stay until dismissed, low ones are silent, repeats of the same alert replace each other), adds the alert to the activity feed of open windows, and on click focuses the app with the notifications panel open or starts it at `/?notifications`.
+- The button is hidden when the browser has no Push API; a blocked permission is explained instead.
+
+Server side (`services/notification-service`, package `push`): payload encryption (RFC 8291, `aes128gcm`) and VAPID signing (RFC 8292) use the JDK only. Messages are sent asynchronously after the notification is committed, severity maps to the `Urgency` header, and subscriptions reported as gone (404 / 410) are deleted. Only https endpoints of known push services are accepted. Metric: `notifications_push_deliveries_total{result}`.

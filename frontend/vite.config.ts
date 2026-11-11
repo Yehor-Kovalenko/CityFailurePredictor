@@ -17,6 +17,7 @@ export default defineConfig({
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//, /^\/oauth2\//, /^\/login/],
         cleanupOutdatedCaches: true,
+        importScripts: ["notification-sw.js"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/[abc]\.tile\.openstreetmap\.org\/.*/,

@@ -128,6 +128,26 @@ class NotificationService {
     const response = await this.api.patch<Notification>(`/notifications/${id}/read`);
     return response.data;
   }
+
+  async getPushPublicKey(): Promise<string | null> {
+    try {
+      const response = await this.api.get<{ publicKey: string }>("/notifications/push/public-key");
+      return response.data.publicKey;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 503) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async savePushSubscription(subscription: PushSubscriptionJSON): Promise<void> {
+    await this.api.post("/notifications/push/subscriptions", subscription);
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<void> {
+    await this.api.delete("/notifications/push/subscriptions", { data: { endpoint } });
+  }
 }
 
 export const incidentService = new IncidentService();

@@ -7,6 +7,7 @@ import com.citydisruptors.notification_service.entity.NotificationStatus;
 import com.citydisruptors.notification_service.repository.NotificationRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,9 +22,15 @@ public class NotificationService {
     private final NotificationRepository repository;
     private final Counter notificationsCreated;
     private final Counter duplicateAlertsSkipped;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public NotificationService(NotificationRepository repository, MeterRegistry registry) {
+    public NotificationService(
+            NotificationRepository repository,
+            MeterRegistry registry,
+            ApplicationEventPublisher eventPublisher
+    ) {
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
         this.notificationsCreated = registry.counter("notifications.created.total");
         this.duplicateAlertsSkipped = registry.counter("notifications.duplicates.skipped.total");
     }
@@ -51,6 +58,7 @@ public class NotificationService {
 
         repository.save(notification);
         notificationsCreated.increment();
+        eventPublisher.publishEvent(new NotificationCreatedEvent(notification));
     }
 
     @Transactional(readOnly = true)
