@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { CheckCircle, AlertCircle, Clock, UploadCloud, Trash2 } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, UploadCloud, Trash2, Share2 } from "lucide-react";
+import {shareIncident} from "@/capabilities/shareIncident";
+import {IncidentPhoto} from "./IncidentPhoto";
 import { Incident, IncidentStatus } from "../types";
 import {incidentRepository} from "../offline/repository";
 import {isLocalId} from "../offline/outbox";
@@ -72,6 +74,27 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
     }
   };
 
+  const handleShare = async () => {
+    try {
+      const outcome = await shareIncident(incident);
+      if (outcome === "copied") {
+        publish('event_feed', {
+          title: "Incident details copied to clipboard",
+          summary: incident.incidentTitle,
+          eventLevel: EventFeedItemLevel.INFO,
+          type: "Incidents"
+        });
+      }
+    } catch (error) {
+      console.error("Failed to share incident:", error);
+      publish('event_feed', {
+        title: "Failed to share incident",
+        eventLevel: EventFeedItemLevel.ERROR,
+        type: "Incidents"
+      });
+    }
+  };
+
   const getStatusIcon = (status: IncidentStatus) => {
     switch (status) {
       case "OPEN":
@@ -99,16 +122,28 @@ export function IncidentCard({ incident, onUpdate }: IncidentCardProps) {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => handleDelete()}
-          disabled={loading}
-          className="shrink-0 p-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
-          title="Delete incident"
-          aria-label="Delete incident"
-        >
-          <Trash2 size={18} />
-        </button>
+        <div className="flex shrink-0 gap-1">
+          <button
+            onClick={() => void handleShare()}
+            className="shrink-0 p-1 text-blue-500 hover:bg-blue-50 rounded"
+            title="Share incident"
+            aria-label="Share incident"
+          >
+            <Share2 size={18} />
+          </button>
+          <button
+            onClick={() => handleDelete()}
+            disabled={loading}
+            className="shrink-0 p-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+            title="Delete incident"
+            aria-label="Delete incident"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
       </div>
+
+      <IncidentPhoto incident={incident} />
 
       <div className="flex flex-wrap gap-2 mb-3">
         {incident.pendingSync && (

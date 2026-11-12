@@ -12,6 +12,9 @@ import com.citydisruptors.incidentservice.entity.IncidentStatus;
 import com.citydisruptors.incidentservice.entity.IncidentType;
 import com.citydisruptors.incidentservice.entity.mapper.IncidentMapper;
 import com.citydisruptors.incidentservice.exception.IncidentNotFoundException;
+import com.citydisruptors.incidentservice.photo.IncidentPhoto;
+import com.citydisruptors.incidentservice.photo.IncidentPhotoRepository;
+import com.citydisruptors.incidentservice.photo.PhotoDataUrl;
 import com.citydisruptors.incidentservice.repository.IncidentRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -19,8 +22,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -29,6 +35,7 @@ public class IncidentService {
     private static final Logger log = LoggerFactory.getLogger(IncidentService.class);
     @Autowired
     private final IncidentRepository repository;
+    private final IncidentPhotoRepository photoRepository;
 
     private final Counter created;
     private final Counter updated;
@@ -39,8 +46,9 @@ public class IncidentService {
     private final IncidentCreatedProducer incidentCreatedProducer;
     private final IncidentUpdatedProducer incidentUpdatedProducer;
 
-    public IncidentService(IncidentRepository repository, MeterRegistry registry, IncidentCreatedProducer incidentCreatedProducer, IncidentUpdatedProducer incidentUpdatedProducer) {
+    public IncidentService(IncidentRepository repository, IncidentPhotoRepository photoRepository, MeterRegistry registry, IncidentCreatedProducer incidentCreatedProducer, IncidentUpdatedProducer incidentUpdatedProducer) {
         this.repository = repository;
+        this.photoRepository = photoRepository;
         this.created = registry.counter("incidents.created.success");
         this.updated = registry.counter("incidents.updated.success");
         this.incidentsResolved = registry.counter("incidents.resolved");
@@ -52,15 +60,19 @@ public class IncidentService {
     }
 
     public IncidentResponse create(CreateIncidentRequest request) {
+        PhotoDataUrl photo = StringUtils.hasText(request.photo()) ? PhotoDataUrl.parse(request.photo()) : null;
         try {
             log.info("Started creating an incident");
             Incident incident = IncidentMapper.toEntity(request);
             Incident saved = repository.save(incident);
+            if (photo != null) {
+                photoRepository.save(new IncidentPhoto(saved.getId(), photo));
+            }
 
             created.increment();
 
             incidentCreatedProducer.publish(IncidentCreatedEvent.of(saved));
-            return IncidentMapper.toResponse(repository.save(incident));
+            return IncidentMapper.toResponse(repository.save(incident), photo != null);
         }
         catch (Exception ex) {
             creationFailed.increment();
@@ -72,13 +84,20 @@ public class IncidentService {
     public IncidentResponse getById(UUID id) {
         log.info("Incident requested by ID");
         return repository.findById(id)
-                .map(IncidentMapper::toResponse)
+                .map(incident -> IncidentMapper.toResponse(incident, photoRepository.existsById(id)))
                 .orElseThrow(() -> new IncidentNotFoundException("Incident not found with id: " + id));
     }
 
     public List<IncidentResponse> getAll(IncidentStatus status, IncidentType type) {
         log.info("All incident queried by status or type");
-        return repository.findAll().stream().map(IncidentMapper::toResponse).toList();
+        Set<UUID> withPhoto = photoRepository.findAllIncidentIds();
+        return repository.findAll().stream()
+                .map(incident -> IncidentMapper.toResponse(incident, withPhoto.contains(incident.getId())))
+                .toList();
+    }
+
+    public Optional<IncidentPhoto> getPhoto(UUID id) {
+        return photoRepository.findById(id);
     }
 
     public IncidentResponse updateStatus(UUID id, UpdateIncidentStatusRequest request) {
@@ -100,7 +119,7 @@ public class IncidentService {
 
             incidentUpdatedProducer.publish(IncidentUpdatedEvent.of(updatedEntity));
 
-            return IncidentMapper.toResponse(repository.save(incident));
+            return IncidentMapper.toResponse(repository.save(incident), photoRepository.existsById(id));
         } catch (Exception ex) {
             updateFailed.increment();
             log.error("Failed to update status from {} to {} for incident with id {}", prevStatus, request.status(), id.toString());

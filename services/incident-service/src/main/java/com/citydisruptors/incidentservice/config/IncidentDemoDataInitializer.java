@@ -86,7 +86,8 @@ public class IncidentDemoDataInitializer implements ApplicationRunner {
                 title,
                 summary,
                 new Coordinates("EPSG:4326", String.valueOf(latitude), String.valueOf(longitude)),
-                type
+                type,
+                null
         );
     }
 }

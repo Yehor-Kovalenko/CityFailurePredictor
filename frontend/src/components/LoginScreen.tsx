@@ -8,7 +8,7 @@ interface LoginScreenProps {
 
 export function LoginScreen({ onLogin, loading, error }: LoginScreenProps) {
   return (
-    <div className="min-h-dvh bg-dark-950 text-white flex items-center justify-center p-4 sm:p-6">
+    <main className="min-h-dvh bg-dark-950 text-white flex items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-xl rounded-2xl border border-dark-700 bg-gradient-to-br from-dark-800 to-dark-900 shadow-2xl shadow-black/40 p-6 sm:p-8">
         <div className="flex items-center gap-3 mb-6">
           <div className="shrink-0 h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
@@ -39,6 +39,6 @@ export function LoginScreen({ onLogin, loading, error }: LoginScreenProps) {
           {loading ? "Signing in..." : "Continue with Google"}
         </button>
       </div>
-    </div>
+    </main>
   );
 }

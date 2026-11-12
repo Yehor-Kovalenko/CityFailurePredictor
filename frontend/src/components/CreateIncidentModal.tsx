@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {Crosshair, Map as MapIcon, X} from "lucide-react";
+import {Camera, Crosshair, Map as MapIcon, Trash2, X} from "lucide-react";
 import {Coordinates, CreateIncidentRequest, IncidentType} from "../types";
 import {incidentRepository} from "../offline/repository";
 import {publish} from "@/utils/eventBroker.ts";
@@ -8,6 +8,7 @@ import {getErrorMessage} from "@/utils/errors.ts";
 import {getCurrentPosition, LatLng} from "@/utils/geo.ts";
 import {readGeoConsent} from "@/services/geoConsent.ts";
 import {LocationPicker} from "./LocationPicker";
+import {compressImage} from "@/utils/image.ts";
 
 interface CreateIncidentModalProps {
   isOpen: boolean;
@@ -42,6 +43,22 @@ export function CreateIncidentModal({
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    setPhotoError(null);
+    try {
+      setPhoto(await compressImage(file));
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : "Unable to read the photo");
+    }
+  };
 
   const setLocation = (point: LatLng) => {
     setFormData((prev) => ({
@@ -110,6 +127,7 @@ export function CreateIncidentModal({
         incidentSummary: formData.incidentSummary,
         coordinates,
         incidentType: formData.incidentType,
+        ...(photo ? { photo } : {}),
       };
 
       const { queued } = await incidentRepository.create(request);
@@ -124,6 +142,7 @@ export function CreateIncidentModal({
         incidentType: "FIRE",
       });
       setIsPickerOpen(false);
+      setPhoto(null);
       publish('event_feed', {
         title: request.incidentTitle,
         summary: shortenText(request.incidentSummary, 25),
@@ -287,7 +306,44 @@ export function CreateIncidentModal({
             <LocationPicker value={pickedPoint} onChange={setLocation} />
           )}
 
-          <div className="flex gap-3 pt-4">
+          <div>
+            <span className="block text-sm font-medium text-gray-700 mb-1">
+              Photo (optional)
+            </span>
+            {photo ? (
+              <div className="relative">
+                <img
+                  src={photo}
+                  alt="Selected incident photo"
+                  className="h-40 w-full rounded-md object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPhoto(null)}
+                  aria-label="Remove photo"
+                  className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-300 px-3 py-4 text-sm font-medium text-gray-600 hover:border-blue-400 hover:text-blue-600 focus-within:ring-2 focus-within:ring-blue-500">
+                <Camera size={18} aria-hidden="true" />
+                Take or choose a photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => void handlePhotoChange(event)}
+                  className="sr-only"
+                />
+              </label>
+            )}
+            {photoError && (
+              <p className="mt-1 text-sm text-red-600">{photoError}</p>
+            )}
+          </div>
+
+          <div className="sticky bottom-0 -mx-4 -mb-4 sm:-mx-6 sm:-mb-6 flex gap-3 border-t bg-white px-4 py-4 sm:px-6">
             <button
               type="button"
               onClick={onClose}

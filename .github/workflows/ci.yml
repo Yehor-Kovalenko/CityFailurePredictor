@@ -304,6 +304,60 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  frontend-lighthouse:
+    name: Frontend - Lighthouse audit
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Run Lighthouse audit
+        run: npm run lighthouse
+
+      - name: Add Lighthouse summary
+        if: ${{ !cancelled() && hashFiles('frontend/lighthouse-report/manifest.json') != '' }}
+        run: |
+          {
+            echo "### Lighthouse (mobile, median of 3 runs)"
+            echo
+            echo "| URL | Performance | Accessibility | Best practices | SEO |"
+            echo "|---|---:|---:|---:|---:|"
+            jq -r '.[] | select(.isRepresentativeRun) | .summary as $s
+              | "| \(.url) | \($s.performance * 100 | round) | \($s.accessibility * 100 | round) | \($s["best-practices"] * 100 | round) | \($s.seo * 100 | round) |"' \
+              lighthouse-report/manifest.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Lighthouse report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-lighthouse-report
+          path: frontend/lighthouse-report/
+          if-no-files-found: warn
+          retention-days: 14
+
   secret-scan:
     name: Secret scan (Gitleaks)
     runs-on: ubuntu-latest
@@ -456,7 +510,7 @@ jobs:
   prepare:
     name: Prepare image names and version
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, ai, frontend, frontend-e2e, secret-scan, dockerfile-lint, supply-chain, sonarqube-scan]
+    needs: [backend, ai, frontend, frontend-e2e, frontend-lighthouse, secret-scan, dockerfile-lint, supply-chain, sonarqube-scan]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -797,7 +851,7 @@ jobs:
   # path filter count as success; any failed or cancelled job fails this check and blocks the merge.
   ci-result:
     name: CI result
-    needs: [ changes, backend, ai, frontend, secret-scan, dockerfile-lint, supply-chain, sonarqube-scan ]
+    needs: [ changes, backend, ai, frontend, frontend-lighthouse, secret-scan, dockerfile-lint, supply-chain, sonarqube-scan ]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

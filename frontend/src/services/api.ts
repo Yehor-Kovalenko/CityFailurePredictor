@@ -46,6 +46,11 @@ class IncidentService {
     return response.data;
   }
 
+  async getIncidentPhoto(id: string): Promise<Blob> {
+    const response = await this.api.get<Blob>(`/incidents/${id}/photo`, { responseType: "blob" });
+    return response.data;
+  }
+
   async getIncidentById(id: string): Promise<Incident> {
     const response = await this.api.get<Incident>(`/incidents/${id}`);
     return response.data;

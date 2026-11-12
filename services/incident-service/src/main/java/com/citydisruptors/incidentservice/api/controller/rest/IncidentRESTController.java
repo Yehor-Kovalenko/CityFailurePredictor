@@ -10,10 +10,13 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -39,6 +42,17 @@ public class IncidentRESTController {
     @GetMapping("/{id}")
     public IncidentResponse getById(@PathVariable UUID id) {
         return service.getById(id);
+    }
+
+    @GetMapping("/{id}/photo")
+    public ResponseEntity<byte[]> getPhoto(@PathVariable UUID id) {
+        return service.getPhoto(id)
+                .map(photo -> ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(photo.getContentType()))
+                        .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePrivate())
+                        .header("X-Content-Type-Options", "nosniff")
+                        .body(photo.getData()))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/all")

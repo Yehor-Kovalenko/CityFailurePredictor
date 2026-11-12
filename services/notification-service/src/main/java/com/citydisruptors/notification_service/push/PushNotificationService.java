@@ -1,6 +1,8 @@
 package com.citydisruptors.notification_service.push;
 
 import com.citydisruptors.notification_service.entity.Notification;
+import com.citydisruptors.notification_service.entity.NotificationStatus;
+import com.citydisruptors.notification_service.repository.NotificationRepository;
 import com.citydisruptors.notification_service.service.NotificationCreatedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -27,6 +29,7 @@ public class PushNotificationService {
     private static final int MAX_BODY_LENGTH = 300;
 
     private final PushSubscriptionRepository repository;
+    private final NotificationRepository notificationRepository;
     private final WebPushSender sender;
     private final PushProperties properties;
     private final ObjectMapper objectMapper;
@@ -34,12 +37,14 @@ public class PushNotificationService {
 
     public PushNotificationService(
             PushSubscriptionRepository repository,
+            NotificationRepository notificationRepository,
             WebPushSender sender,
             PushProperties properties,
             ObjectMapper objectMapper,
             MeterRegistry registry
     ) {
         this.repository = repository;
+        this.notificationRepository = notificationRepository;
         this.sender = sender;
         this.properties = properties;
         this.objectMapper = objectMapper;
@@ -83,7 +88,8 @@ public class PushNotificationService {
                     "title", notification.getTitle(),
                     "body", truncate(notification.getMessage()),
                     "severity", notification.getSeverity().name(),
-                    "alertId", notification.getAlertId()));
+                    "alertId", notification.getAlertId(),
+                    "unreadCount", notificationRepository.countByStatus(NotificationStatus.UNREAD)));
         } catch (Exception e) {
             log.error("Could not serialize push payload for notification {}", notification.getId(), e);
             return;

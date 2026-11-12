@@ -215,6 +215,7 @@ Put the generated keys into `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in `.env`
 | Backend (Java) | `./mvnw verify`: build, JUnit tests, JaCoCo coverage |
 | AI service (Python) | `ruff check` lint, `pytest` with `pytest-cov` |
 | Frontend | ESLint, Vitest, type check and production build |
+| Frontend (e2e, Lighthouse) | Playwright end-to-end suite; Lighthouse CI audit with score thresholds |
 
 * A failing test fails the job, and the **CI result** check (required for merging) fails with it.
 * On pull requests only the changed components are built; outdated PR runs are cancelled.

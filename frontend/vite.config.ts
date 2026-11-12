@@ -20,6 +20,15 @@ export default defineConfig({
         importScripts: ["notification-sw.js"],
         runtimeCaching: [
           {
+            urlPattern: ({ url }) => /^\/incidents\/[^/]+\/photo$/.test(url.pathname),
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "incident-photos",
+              expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             urlPattern: /^https:\/\/[abc]\.tile\.openstreetmap\.org\/.*/,
             handler: "StaleWhileRevalidate",
             options: {

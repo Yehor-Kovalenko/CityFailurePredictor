@@ -10,7 +10,7 @@ public class IncidentMapper {
         return new Incident(request.incidentTitle(), request.incidentSummary(), request.coordinates(), request.incidentType());
     }
 
-    public static IncidentResponse toResponse(Incident incident) {
+    public static IncidentResponse toResponse(Incident incident, boolean hasPhoto) {
         return new IncidentResponse(
                 incident.getId(),
                 incident.getIncidentTitle(),
@@ -19,7 +19,8 @@ public class IncidentMapper {
                 incident.getIncidentType(),
                 incident.getIncidentStatus(),
                 incident.getCreatedTimestamp(),
-                incident.getLastUpdatedTimestamp()
+                incident.getLastUpdatedTimestamp(),
+                hasPhoto
         );
     }
 }
