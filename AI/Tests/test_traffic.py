@@ -276,6 +276,34 @@ def test_traffic_that_stops_is_reported_as_drop_anomaly():
     assert producer.events[-1][1]["observation"]["anomalyType"] == "DROP"
 
 
+class ReactiveTrafficService(StubTrafficService):
+    """Forecasts the last reading again, like a model that follows a jam."""
+
+    def predict_next(self, values, last_timestamp, junction_id):
+        self.prediction = float(values[-1])
+        return super().predict_next(values, last_timestamp, junction_id)
+
+
+def anomaly_types(producer):
+    return [event["observation"]["anomalyType"] for _, event in producer.events if event["observation"]]
+
+
+def test_return_to_normal_after_a_jam_is_not_a_new_anomaly():
+    pipeline, _, producer = make_pipeline(service=ReactiveTrafficService())
+
+    feed(pipeline, [40, 40, 40, 95, 41, 40])
+
+    assert anomaly_types(producer) == ["SURGE", None, None]
+
+
+def test_jam_that_continues_and_a_later_drop_are_still_reported():
+    pipeline, _, producer = make_pipeline(service=ReactiveTrafficService())
+
+    feed(pipeline, [40, 40, 40, 95, 200, 190, 3])
+
+    assert anomaly_types(producer) == ["SURGE", "SURGE", None, "DROP"]
+
+
 def test_forecast_above_threshold_means_congestion_expected():
     pipeline, _, producer = make_pipeline(service=StubTrafficService(prediction=93.0))
 

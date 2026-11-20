@@ -2,7 +2,7 @@ import logging
 import math
 from datetime import timedelta
 
-from AI.Domain.Algorithms.traffic_anomaly import TrafficAnomalyDetector
+from AI.Domain.Algorithms.traffic_anomaly import ObservationAssessment, TrafficAnomalyDetector
 from AI.Orchestration.prediction_event_mapper import PredictionEventMapper, to_java_instant
 from AI.Orchestration.reading_history import ReadingHistory
 
@@ -85,7 +85,10 @@ class TrafficPredictionPipeline:
 
         # Stored only after a successful publish, so a retry of this reading is
         # still compared with the forecast made for it.
-        self._forecasts[junction_id] = result
+        self._forecasts[junction_id] = {
+            **result,
+            "made_after_anomaly": observation["anomalyType"] if observation else None,
+        }
 
         logger.info(
             "Traffic prediction published junction_id=%s predicted=%.1f congestion=%s anomaly=%s",
@@ -108,6 +111,14 @@ class TrafficPredictionPipeline:
 
         expected = max(0.0, forecast["next_prediction"])
         assessment = self.detector.assess_observation(reading.vehicles, expected, uncertainty["std"])
+
+        # A forecast made right after a jam expects the jam to go on. Traffic
+        # going back to normal then looks like a DROP (and the other way round
+        # after a DROP); that is the end of the anomaly, not a new one.
+        previous_anomaly = forecast.get("made_after_anomaly")
+
+        if assessment.is_anomaly and previous_anomaly and assessment.anomaly_type != previous_anomaly:
+            assessment = ObservationAssessment(None, assessment.score)
 
         return {
             "timestamp": to_java_instant(reading.reading_timestamp),

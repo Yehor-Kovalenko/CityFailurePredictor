@@ -1,5 +1,6 @@
 import os
 import threading
+from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
@@ -24,7 +25,24 @@ logger = logging.getLogger(__name__)
 
 KAFKA_CONFIG_PATH = "AI/configs/kafka_config.json"
 
-app = FastAPI(title="AI Service")
+running_consumers = []
+consumer_threads = []
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    yield
+
+    # Leave the consumer groups on shutdown, so the next instance gets the
+    # partitions at once instead of waiting for the session timeout.
+    for consumer in list(running_consumers):
+        consumer.stop()
+
+    for thread in consumer_threads:
+        thread.join(timeout=10)
+
+
+app = FastAPI(title="AI Service", lifespan=lifespan)
 
 request_manager = RequestManager()
 
@@ -76,7 +94,9 @@ def handle_traffic_request(request):
 
 def _run_consumer(name, build_consumer, handler, on_failure):
     try:
-        build_consumer().start(handler)
+        consumer = build_consumer()
+        running_consumers.append(consumer)
+        consumer.start(handler)
     except Exception:
         logger.critical("Kafka consumer stopped stream=%s", name, exc_info=True)
         consumer_failed.set()
@@ -110,10 +130,12 @@ def exit_process():
 
 if __name__ == "__main__":
     for target in (start_consumer, start_traffic_consumer):
-        threading.Thread(
+        thread = threading.Thread(
             target=target,
             kwargs={"on_failure": exit_process},
             daemon=True,
-        ).start()
+        )
+        consumer_threads.append(thread)
+        thread.start()
 
     uvicorn.run(app, host="0.0.0.0", port=8090)
