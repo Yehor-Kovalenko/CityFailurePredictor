@@ -6,6 +6,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 from AI.Domain.Models.ngboost_model import NGBoostModel
@@ -19,7 +20,7 @@ WEIGHTS_DIR = RESOURCES_DIR / "ModelWeights"
 TRACKED_PACKAGES = ("numpy", "pandas", "scikit-learn", "scipy", "xgboost", "ngboost", "joblib")
 
 
-def parse_args(description, task, data_env, data_help, data_default=None, argv=None):
+def parse_args(description, data_env, data_help, data_default=None, argv=None):
     parser = argparse.ArgumentParser(description=description)
 
     parser.add_argument(
@@ -27,7 +28,6 @@ def parse_args(description, task, data_env, data_help, data_default=None, argv=N
         default=os.environ.get(data_env, data_default),
         help=f"{data_help} (env: {data_env})",
     )
-    parser.add_argument("--config", default=str(CONFIGS_DIR / task / "train_config.json"))
     parser.add_argument(
         "--output-dir",
         default=None,
@@ -42,9 +42,26 @@ def parse_args(description, task, data_env, data_help, data_default=None, argv=N
     return args
 
 
-def load_config(path):
-    with open(path, "r") as f:
+def load_train_config(task):
+    with open(CONFIGS_DIR / task / "train_config.json", "r") as f:
         return json.load(f)
+
+
+def split_by_time(df, split_config, time_column="DateTime"):
+    train_end = pd.to_datetime(split_config["train_end"])
+    val_end = pd.to_datetime(split_config["val_end"])
+    test_end = pd.to_datetime(split_config["test_end"])
+
+    train_df = df[df[time_column] < train_end]
+    val_df = df[(df[time_column] >= train_end) & (df[time_column] < val_end)]
+    test_df = df[(df[time_column] >= val_end) & (df[time_column] <= test_end)]
+
+    print("\n=== SPLIT ===")
+    print(f"Train: {train_df.shape}  (before {train_end})")
+    print(f"Val:   {val_df.shape}  (before {val_end})")
+    print(f"Test:  {test_df.shape}  (until {test_end})")
+
+    return train_df, val_df, test_df
 
 
 def build_model(model_type):
@@ -112,6 +129,43 @@ def _package_versions():
             versions[package] = None
 
     return versions
+
+
+def fit_evaluate_save(model_type, splits, window_size, task_weights_dir, metadata, output_dir=None):
+    """Trains on the first split, calibrates on the second, scores both held-out splits and saves the run."""
+
+    (X_train, y_train), (X_val, y_val), (X_test, y_test) = splits
+
+    print("\n=== FEATURES ===")
+    for name, X in (("train", X_train), ("validation", X_val), ("test", X_test)):
+        print(f"{name}: {X.shape}")
+        require_rows(name, X)
+
+    model = build_model(model_type)
+
+    print(f"\nTraining {model_type}...")
+    model.train(X_train, y_train)
+
+    if hasattr(model, "calibrate"):
+        model.calibrate(X_val, y_val)
+
+    val_scores = evaluate(model, X_val, y_val, last_value_column=window_size - 1)
+    test_scores = evaluate(model, X_test, y_test, last_value_column=window_size - 1)
+
+    print_scores("VALIDATION", val_scores)
+    print_scores("TEST", test_scores)
+
+    run_dir = save_run(
+        model,
+        task_weights_dir=task_weights_dir,
+        model_type=model_type,
+        metadata={**metadata, "validation": val_scores, "test": test_scores},
+        output_dir=output_dir,
+    )
+
+    print(f"\nSaved model to: {run_dir}")
+
+    return run_dir
 
 
 def save_run(model, task_weights_dir, model_type, metadata, output_dir=None):

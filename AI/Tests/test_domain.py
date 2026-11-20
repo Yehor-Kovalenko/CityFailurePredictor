@@ -111,12 +111,6 @@ def test_ngboost_honours_max_depth():
 # =========================================================
 # TRAINING SCRIPTS
 # =========================================================
-def write_config(tmp_path, config):
-    path = tmp_path / "train_config.json"
-    path.write_text(json.dumps(config))
-    return str(path)
-
-
 def read_run(run_dir):
     assert (run_dir / "model.joblib").exists()
     return json.loads((run_dir / "metadata.json").read_text())
@@ -131,17 +125,15 @@ def test_energy_trainer_runs_from_any_directory(tmp_path, monkeypatch):
     values = 0.5 + 0.3 * np.sin(np.arange(n) / 48 * 2 * np.pi) + rng.normal(0, 0.02, n)
     house("MAC1", values).to_csv(data_dir / "part.csv", index=False)
 
-    config = write_config(tmp_path, {
+    config = {
         "dataset": {"house_id": "MAC1"},
         "split": {"train_end": "2013-01-08", "val_end": "2013-01-11", "test_end": "2013-01-14"},
         "features": {"window_size": 24},
         "model": {"type": "xgboost"},
-    })
+    }
     monkeypatch.chdir(tmp_path)
 
-    run_dir = trainer_energy.main([
-        "--data-path", str(data_dir), "--config", config, "--output-dir", str(tmp_path / "out"),
-    ])
+    run_dir = trainer_energy.run(config, str(data_dir), str(tmp_path / "out"))
 
     metadata = read_run(run_dir)
     assert metadata["house_ids"] == ["MAC1"]
@@ -154,15 +146,13 @@ def test_traffic_trainer_records_junctions(tmp_path):
     csv_path = tmp_path / "traffic.csv"
     pd.concat([junction(j, n=24 * 20, start="2017-01-01") for j in (1, 2)]).to_csv(csv_path, index=False)
 
-    config = write_config(tmp_path, {
+    config = {
         "model": {"type": "xgboost"},
         "features": {"window_size": 6, "use_hour": True, "use_day_of_week": True},
         "split": {"train_end": "2017-01-12", "val_end": "2017-01-16", "test_end": "2017-01-20"},
-    })
+    }
 
-    run_dir = trainer_traffic.main([
-        "--data-path", str(csv_path), "--config", config, "--output-dir", str(tmp_path / "out"),
-    ])
+    run_dir = trainer_traffic.run(config, str(csv_path), str(tmp_path / "out"))
 
     assert read_run(run_dir)["junction_ids"] == [1, 2]
 
@@ -171,11 +161,11 @@ def test_trainer_reports_empty_split(tmp_path):
     csv_path = tmp_path / "traffic.csv"
     junction(1, n=48, start="2017-01-01").to_csv(csv_path, index=False)
 
-    config = write_config(tmp_path, {
+    config = {
         "model": {"type": "xgboost"},
         "features": {"window_size": 6, "use_hour": True, "use_day_of_week": True},
         "split": {"train_end": "2017-01-02", "val_end": "2017-01-03", "test_end": "2018-01-01"},
-    })
+    }
 
     with pytest.raises(ValueError, match="test split has no samples"):
-        trainer_traffic.main(["--data-path", str(csv_path), "--config", config, "--output-dir", str(tmp_path)])
+        trainer_traffic.run(config, str(csv_path), str(tmp_path))

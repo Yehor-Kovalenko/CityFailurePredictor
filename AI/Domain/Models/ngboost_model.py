@@ -20,7 +20,11 @@ class NGBoostModel:
 
         self.model = NGBRegressor(
             Dist=Normal,
-            Base=DecisionTreeRegressor(criterion="friedman_mse", max_depth=max_depth),
+            Base=DecisionTreeRegressor(
+                criterion="friedman_mse",
+                max_depth=max_depth,
+                random_state=random_state,
+            ),
             n_estimators=n_estimators,
             learning_rate=learning_rate,
             minibatch_frac=minibatch_frac,
