@@ -33,17 +33,25 @@ class XGBoostModel:
 
         self.model.fit(X, y)
 
-        preds = self.model.predict(X)
+        # Fallback only: residuals on the training set are smaller than on
+        # unseen data. Call calibrate() with a held-out set after training.
+        self.calibrate(X, y)
 
-        residuals = y - preds
+    def calibrate(self, X: np.ndarray, y: np.ndarray):
+        """Sets the spread used by predict_interval() from residuals on X, y."""
 
-        self.residual_std = np.std(residuals)
+        residuals = np.asarray(y) - self.model.predict(X)
+
+        self.residual_std = float(np.std(residuals))
 
     def predict(self, X: np.ndarray):
 
         return self.model.predict(X)
 
     def predict_mean_std(self, X: np.ndarray):
+
+        if self.residual_std is None:
+            raise ValueError("Model has no residual_std; train or calibrate it first")
 
         mean = self.predict(X)
 

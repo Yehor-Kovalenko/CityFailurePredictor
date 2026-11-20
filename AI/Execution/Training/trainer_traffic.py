@@ -1,25 +1,34 @@
-import json
-import os
-from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
-from sklearn.metrics import mean_absolute_error
 
 from AI.Domain.Datasets.feature_builder_traffic import TrafficFeatureBuilder
 from AI.Domain.Datasets.traffic_dataset import TrafficDataset
-from AI.Domain.Models.ngboost_model import NGBoostModel
-from AI.Domain.Models.xgboost_model import XGBoostModel
+from AI.Execution.Training.common import (
+    build_model,
+    evaluate,
+    load_config,
+    parse_args,
+    print_scores,
+    require_rows,
+    save_run,
+)
 
 
 # ----------------------------
 # MAIN
 # ----------------------------
-def main():
+def main(argv=None):
 
-    config_path = "../../Domain/Resources/Configs/traffic/train_config.json"
+    args = parse_args(
+        description="Train the traffic forecasting model",
+        task="traffic",
+        data_env="CFP_TRAFFIC_CSV",
+        data_help="Path to traffic.csv (columns: DateTime, Junction, Vehicles)",
+        argv=argv,
+    )
 
-    with open(config_path, "r") as f:
-        config = json.load(f)
+    config = load_config(args.config)
 
     model_type = config["model"]["type"].lower()
     window_size = config["features"]["window_size"]
@@ -31,14 +40,7 @@ def main():
     # ----------------------------
     # MODEL
     # ----------------------------
-    if model_type == "ngboost":
-        model = NGBoostModel()
-
-    elif model_type == "xgboost":
-        model = XGBoostModel()
-
-    else:
-        raise ValueError(f"Unsupported model type: {model_type}")
+    model = build_model(model_type)
 
     print("\n=== CONFIG ===")
     print(f"Model: {model_type}")
@@ -52,10 +54,11 @@ def main():
     # ----------------------------
     print("\nLoading traffic dataset...")
 
-    dataset = TrafficDataset("/home/agata/Documents/8/a lot of data/traffic.csv")
+    dataset = TrafficDataset(args.data_path)
 
     df = dataset.load()
 
+    junction_ids = sorted(int(j) for j in df["Junction"].unique())
 
     # ----------------------------
     # SPLIT
@@ -81,9 +84,10 @@ def main():
     # FEATURES
     # ----------------------------
     builder = TrafficFeatureBuilder(
-        window_size=config["features"]["window_size"],
+        window_size=window_size,
         use_hour=config["features"]["use_hour"],
         use_day_of_week=config["features"]["use_day_of_week"],
+        junction_ids=junction_ids,
     )
 
     X_train, y_train = builder.transform(train_df)
@@ -97,6 +101,9 @@ def main():
     print(f"Val:   {X_val.shape}")
     print(f"Test:  {X_test.shape}")
 
+    for name, X in (("train", X_train), ("validation", X_val), ("test", X_test)):
+        require_rows(name, X)
+
     # ----------------------------
     # TRAIN
     # ----------------------------
@@ -104,50 +111,40 @@ def main():
 
     model.train(X_train, y_train)
 
-    # ----------------------------
-    # VALIDATION
-    # ----------------------------
-    val_preds = model.predict(X_val)
-
-    val_mae = mean_absolute_error(
-        y_val,
-        val_preds
-    )
-
-    print("\n=== VALIDATION ===")
-    print(f"MAE: {val_mae:.5f}")
+    if hasattr(model, "calibrate"):
+        model.calibrate(X_val, y_val)
 
     # ----------------------------
-    # TEST
+    # EVALUATION
     # ----------------------------
-    test_preds = model.predict(X_test)
+    val_scores = evaluate(model, X_val, y_val, last_value_column=window_size - 1)
+    test_scores = evaluate(model, X_test, y_test, last_value_column=window_size - 1)
 
-    test_mae = mean_absolute_error(
-        y_test,
-        test_preds
-    )
-
-    print("\n=== TEST ===")
-    print(f"MAE: {test_mae:.5f}")
+    print_scores("VALIDATION", val_scores)
+    print_scores("TEST", test_scores)
 
     # ----------------------------
     # SAVE
     # ----------------------------
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-    run_dir = os.path.join(
-        "../../Domain/Resources/ModelWeights/traffic_weights",
-        model_type,
-        timestamp
-    )
-
-    os.makedirs(run_dir, exist_ok=True)
-
-    model.save(
-        os.path.join(run_dir, "model.joblib")
+    run_dir = save_run(
+        model,
+        task_weights_dir="traffic_weights",
+        model_type=model_type,
+        metadata={
+            "task": "traffic",
+            "config": config,
+            "data_source": Path(args.data_path).name,
+            "junction_ids": junction_ids,
+            "data_range": [df["DateTime"].min(), df["DateTime"].max()],
+            "validation": val_scores,
+            "test": test_scores,
+        },
+        output_dir=args.output_dir,
     )
 
     print(f"\nSaved model to: {run_dir}")
+
+    return run_dir
 
 
 if __name__ == "__main__":

@@ -1,13 +1,19 @@
-import os
-import json
+from pathlib import Path
+
 import pandas as pd
-from datetime import datetime
-from sklearn.metrics import mean_absolute_error
 
 from AI.Domain.Datasets.feature_builder_london_house import FeatureLondonHouseBuilder
 from AI.Domain.Datasets.london_house_loader import LondonSingleHouseLoader
-from AI.Domain.Models.ngboost_model import NGBoostModel
-from AI.Domain.Models.xgboost_model import XGBoostModel
+from AI.Execution.Training.common import (
+    REPO_ROOT,
+    build_model,
+    evaluate,
+    load_config,
+    parse_args,
+    print_scores,
+    require_rows,
+    save_run,
+)
 
 
 # ----------------------------
@@ -58,12 +64,18 @@ def resolve_house_ids(config):
 # ----------------------------
 # MAIN
 # ----------------------------
-def main():
+def main(argv=None):
 
-    config_path = "../../Domain/Resources/Configs/electricity/train_config.json"
+    args = parse_args(
+        description="Train the electricity consumption forecasting model",
+        task="electricity",
+        data_env="CFP_LCL_DATA_DIR",
+        data_help="Folder with the Low Carbon London CSV partitions",
+        data_default=str(REPO_ROOT / "datasets" / "sample"),
+        argv=argv,
+    )
 
-    with open(config_path, "r") as f:
-        config = json.load(f)
+    config = load_config(args.config)
 
     validate_config(config)
 
@@ -72,14 +84,7 @@ def main():
 
     window_size = config["features"]["window_size"]
 
-    if model_type == "ngboost":
-        model = NGBoostModel()
-
-    elif model_type == "xgboost":
-        model = XGBoostModel()
-
-    else:
-        raise ValueError(f"Unsupported model type: {model_type}")
+    model = build_model(model_type)
 
     train_end = pd.to_datetime(config["split"]["train_end"])
     val_end = pd.to_datetime(config["split"]["val_end"])
@@ -94,9 +99,7 @@ def main():
     # ----------------------------
     # LOAD DATA
     # ----------------------------
-    loader = LondonSingleHouseLoader(
-        folder_path="/home/agata/Documents/8/a lot of data/Partitioned LCL Data/"
-    )
+    loader = LondonSingleHouseLoader(folder_path=args.data_path)
 
     print("\nLoading data...")
     df = loader.load_houses(house_ids=house_ids).copy()
@@ -132,6 +135,9 @@ def main():
     print(f"Val:   {X_val.shape}")
     print(f"Test:  {X_test.shape}")
 
+    for name, X in (("train", X_train), ("validation", X_val), ("test", X_test)):
+        require_rows(name, X)
+
     # ----------------------------
     # MODEL
     # ----------------------------
@@ -139,40 +145,40 @@ def main():
     print(f"\nTraining {model_type}...")
     model.train(X_train, y_train)
 
-    # ----------------------------
-    # VALIDATION
-    # ----------------------------
-    val_preds = model.predict(X_val)
-    val_mae = mean_absolute_error(y_val, val_preds)
-
-    print("\n=== VALIDATION ===")
-    print(f"MAE: {val_mae:.5f}")
+    if hasattr(model, "calibrate"):
+        model.calibrate(X_val, y_val)
 
     # ----------------------------
-    # TEST
+    # EVALUATION
     # ----------------------------
-    test_preds = model.predict(X_test)
-    test_mae = mean_absolute_error(y_test, test_preds)
+    val_scores = evaluate(model, X_val, y_val, last_value_column=window_size - 1)
+    test_scores = evaluate(model, X_test, y_test, last_value_column=window_size - 1)
 
-    print("\n=== TEST ===")
-    print(f"MAE: {test_mae:.5f}")
+    print_scores("VALIDATION", val_scores)
+    print_scores("TEST", test_scores)
 
     # ----------------------------
     # SAVE
     # ----------------------------
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-    run_dir = os.path.join(
-        "../../Domain/Resources/ModelWeights/electricity_weights",
-        model_type,
-        timestamp
+    run_dir = save_run(
+        model,
+        task_weights_dir="electricity_weights",
+        model_type=model_type,
+        metadata={
+            "task": "electricity",
+            "config": config,
+            "data_source": Path(args.data_path).name,
+            "house_ids": house_ids,
+            "data_range": [df["DateTime"].min(), df["DateTime"].max()],
+            "validation": val_scores,
+            "test": test_scores,
+        },
+        output_dir=args.output_dir,
     )
 
-    os.makedirs(run_dir, exist_ok=True)
-
-    model.save(os.path.join(run_dir, "model.joblib"))
-
     print(f"\nSaved model to: {run_dir}")
+
+    return run_dir
 
 
 if __name__ == "__main__":

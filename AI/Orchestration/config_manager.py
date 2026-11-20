@@ -59,6 +59,7 @@ class ConfigManager:
                     "window_size": raw["features"]["window_size"],
                     "use_hour": raw["features"]["use_hour"],
                     "use_day_of_week": raw["features"]["use_day_of_week"],
+                    "junction_ids": raw["features"].get("junction_ids"),
                 },
 
                 "forecast": {
