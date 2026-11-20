@@ -20,4 +20,16 @@ public class KafkaTopicConfig {
                 .replicas(replicas)
                 .build();
     }
+
+    @Bean
+    public NewTopic trafficRawTopic(
+            @Value("${app.kafka.topics.traffic-raw:traffic.readings.raw}") String topic,
+            @Value("${app.kafka.partitions.traffic-raw:3}") int partitions,
+            @Value("${app.kafka.replicas.traffic-raw:1}") int replicas
+    ) {
+        return TopicBuilder.name(topic)
+                .partitions(partitions)
+                .replicas(replicas)
+                .build();
+    }
 }
