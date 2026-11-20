@@ -1,13 +1,16 @@
-import os
-import json
+from pathlib import Path
+
 import pandas as pd
-from datetime import datetime
-from sklearn.metrics import mean_absolute_error
 
 from AI.Domain.Datasets.feature_builder_london_house import FeatureLondonHouseBuilder
 from AI.Domain.Datasets.london_house_loader import LondonSingleHouseLoader
-from AI.Domain.Models.ngboost_model import NGBoostModel
-from AI.Domain.Models.xgboost_model import XGBoostModel
+from AI.Execution.Training.common import (
+    REPO_ROOT,
+    fit_evaluate_save,
+    load_train_config,
+    parse_args,
+    split_by_time,
+)
 
 
 # ----------------------------
@@ -56,123 +59,58 @@ def resolve_house_ids(config):
 
 
 # ----------------------------
-# MAIN
+# TRAINING
 # ----------------------------
-def main():
-
-    config_path = "../../Domain/Resources/Configs/electricity/train_config.json"
-
-    with open(config_path, "r") as f:
-        config = json.load(f)
+def run(config, data_path, output_dir=None):
 
     validate_config(config)
 
     house_ids = resolve_house_ids(config)
     model_type = config["model"]["type"].lower()
-
     window_size = config["features"]["window_size"]
-
-    if model_type == "ngboost":
-        model = NGBoostModel()
-
-    elif model_type == "xgboost":
-        model = XGBoostModel()
-
-    else:
-        raise ValueError(f"Unsupported model type: {model_type}")
-
-    train_end = pd.to_datetime(config["split"]["train_end"])
-    val_end = pd.to_datetime(config["split"]["val_end"])
-    test_end = pd.to_datetime(config["split"]["test_end"])
 
     print("\n=== CONFIG ===")
     print(f"Houses: {house_ids}")
     print(f"Model: {model_type}")
     print(f"Window: {window_size}")
-    print(f"Train: {train_end} | Val: {val_end} | Test: {test_end}")
-
-    # ----------------------------
-    # LOAD DATA
-    # ----------------------------
-    loader = LondonSingleHouseLoader(
-        folder_path="/home/agata/Documents/8/a lot of data/Partitioned LCL Data/"
-    )
 
     print("\nLoading data...")
-    df = loader.load_houses(house_ids=house_ids).copy()
+    df = LondonSingleHouseLoader(folder_path=data_path).load_houses(house_ids=house_ids).copy()
 
     df["DateTime"] = pd.to_datetime(df["DateTime"])
     df = df.sort_values(["LCLid", "DateTime"])
 
     print(f"Loaded: {df.shape}")
 
-    # ----------------------------
-    # SPLIT
-    # ----------------------------
-    train_df = df[df["DateTime"] < train_end]
-    val_df = df[(df["DateTime"] >= train_end) & (df["DateTime"] < val_end)]
-    test_df = df[(df["DateTime"] >= val_end) & (df["DateTime"] <= test_end)]
-
-    print("\n=== SPLIT ===")
-    print(f"Train: {train_df.shape}")
-    print(f"Val:   {val_df.shape}")
-    print(f"Test:  {test_df.shape}")
-
-    # ----------------------------
-    # FEATURES
-    # ----------------------------
     builder = FeatureLondonHouseBuilder(window_size=window_size)
 
-    X_train, y_train = builder.transform(train_df)
-    X_val, y_val = builder.transform(val_df)
-    X_test, y_test = builder.transform(test_df)
-
-    print("\n=== FEATURES ===")
-    print(f"Train: {X_train.shape}")
-    print(f"Val:   {X_val.shape}")
-    print(f"Test:  {X_test.shape}")
-
-    # ----------------------------
-    # MODEL
-    # ----------------------------
-
-    print(f"\nTraining {model_type}...")
-    model.train(X_train, y_train)
-
-    # ----------------------------
-    # VALIDATION
-    # ----------------------------
-    val_preds = model.predict(X_val)
-    val_mae = mean_absolute_error(y_val, val_preds)
-
-    print("\n=== VALIDATION ===")
-    print(f"MAE: {val_mae:.5f}")
-
-    # ----------------------------
-    # TEST
-    # ----------------------------
-    test_preds = model.predict(X_test)
-    test_mae = mean_absolute_error(y_test, test_preds)
-
-    print("\n=== TEST ===")
-    print(f"MAE: {test_mae:.5f}")
-
-    # ----------------------------
-    # SAVE
-    # ----------------------------
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-    run_dir = os.path.join(
-        "../../Domain/Resources/ModelWeights/electricity_weights",
-        model_type,
-        timestamp
+    return fit_evaluate_save(
+        model_type=model_type,
+        splits=[builder.transform(part) for part in split_by_time(df, config["split"])],
+        window_size=window_size,
+        task_weights_dir="electricity_weights",
+        metadata={
+            "task": "electricity",
+            "config": config,
+            "data_source": Path(data_path).name,
+            "house_ids": house_ids,
+            "data_range": [df["DateTime"].min(), df["DateTime"].max()],
+        },
+        output_dir=output_dir,
     )
 
-    os.makedirs(run_dir, exist_ok=True)
 
-    model.save(os.path.join(run_dir, "model.joblib"))
+def main(argv=None):
 
-    print(f"\nSaved model to: {run_dir}")
+    args = parse_args(
+        description="Train the electricity consumption forecasting model",
+        data_env="CFP_LCL_DATA_DIR",
+        data_help="Folder with the Low Carbon London CSV partitions",
+        data_default=str(REPO_ROOT / "datasets" / "sample"),
+        argv=argv,
+    )
+
+    return run(load_train_config("electricity"), args.data_path, args.output_dir)
 
 
 if __name__ == "__main__":

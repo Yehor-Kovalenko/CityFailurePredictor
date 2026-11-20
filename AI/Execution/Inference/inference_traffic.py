@@ -34,7 +34,7 @@ class InferenceTrafficService:
             window_size=self.window_size,
             use_hour=self.use_hour,
             use_day_of_week=self.use_day_of_week,
-
+            junction_ids=config["features"].get("junction_ids"),
         )
 
     # ----------------------------

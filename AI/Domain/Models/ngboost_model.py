@@ -3,7 +3,7 @@ import numpy as np
 
 from ngboost import NGBRegressor
 from ngboost.distns import Normal
-from ngboost.learners import default_tree_learner
+from sklearn.tree import DecisionTreeRegressor
 
 
 class NGBoostModel:
@@ -20,7 +20,11 @@ class NGBoostModel:
 
         self.model = NGBRegressor(
             Dist=Normal,
-            Base=default_tree_learner,
+            Base=DecisionTreeRegressor(
+                criterion="friedman_mse",
+                max_depth=max_depth,
+                random_state=random_state,
+            ),
             n_estimators=n_estimators,
             learning_rate=learning_rate,
             minibatch_frac=minibatch_frac,

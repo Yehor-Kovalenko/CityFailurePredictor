@@ -1,4 +1,8 @@
+import numpy as np
 import pandas as pd
+
+VALUE_COLUMN = "KWH/hh (per half hour)"
+HOUSE_COLUMN = "LCLid"
 
 
 class FeatureLondonHouseBuilder:
@@ -8,16 +12,25 @@ class FeatureLondonHouseBuilder:
 
     def transform(self, df: pd.DataFrame):
 
-        df = df.copy()
-        df = df.sort_values("DateTime")
-
-        values = df["KWH/hh (per half hour)"].values
+        if HOUSE_COLUMN in df.columns:
+            groups = [group for _, group in df.groupby(HOUSE_COLUMN, sort=True)]
+        else:
+            groups = [df]
 
         X, y = [], []
 
-        for i in range(self.window_size, len(values)):
+        for group in groups:
+            values = group.sort_values("DateTime")[VALUE_COLUMN].to_numpy(dtype=float)
 
-            X.append(values[i-self.window_size:i])
-            y.append(values[i])
+            if len(values) <= self.window_size:
+                continue
 
-        return pd.DataFrame(X), pd.Series(y)
+            windows = np.lib.stride_tricks.sliding_window_view(values, self.window_size + 1)
+
+            X.append(windows[:, :-1])
+            y.append(windows[:, -1])
+
+        if not X:
+            return pd.DataFrame(columns=range(self.window_size), dtype=float), pd.Series(dtype=float)
+
+        return pd.DataFrame(np.concatenate(X)), pd.Series(np.concatenate(y))
