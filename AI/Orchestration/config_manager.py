@@ -66,6 +66,8 @@ class ConfigManager:
                     "horizon": raw["forecast"]["horizon"],
                 },
 
+                "anomaly": raw.get("anomaly", {}),
+
             }
 
         elif task == "vrp":
@@ -83,6 +85,10 @@ class ConfigManager:
                     "coef_urgency": raw["coef_urgency"],
                     "tabu_max_iterations": raw["tabu_max_iterations"],
                     "tabu_tenure": raw["tabu_tenure"],
+                },
+
+                "limits": {
+                    "max_customers": raw.get("max_customers", 150),
                 },
 
                 # optional: keeps inference layer clean & future-proof

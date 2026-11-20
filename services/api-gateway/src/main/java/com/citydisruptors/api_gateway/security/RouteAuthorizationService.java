@@ -107,6 +107,13 @@ public class RouteAuthorizationService {
             return method == HttpMethod.GET || method == HttpMethod.PATCH;
         }
 
+        /*
+         * AI Service
+         */
+        if (path.equals("/ai/routes/optimize")) {
+            return method == HttpMethod.POST;
+        }
+
         return false;
     }
 

@@ -86,6 +86,14 @@ spring:
           filters:
             - StripPrefix=1
 
+        # The AI service is a Python application outside Eureka, addressed directly.
+        - id: ai-service
+          uri: ${AI_SERVICE_URL:http://ai-service:8090}
+          predicates:
+            - Path=/ai/**
+          filters:
+            - StripPrefix=1
+
 eureka:
   instance:
     instance-id: ${spring.application.name}:${server.port}

@@ -42,3 +42,34 @@ class PredictionEventMapper:
                 }
             ]
         }
+
+    @staticmethod
+    def from_traffic_result(reading, inference_result: dict, observation: dict | None, congestion: dict) -> dict:
+        """
+        observation: how the reading compares with the forecast made for its
+        hour (None when there was no such forecast); congestion: threshold and
+        verdict for the forecast hour.
+        """
+
+        uncertainty = inference_result.get("uncertainty")
+
+        return {
+            "predictionBatchId": reading.event_id,
+            "source": "ai-service",
+            "junctionId": reading.junction_id,
+            "generatedAt": to_java_instant(datetime.now(timezone.utc)),
+            "modelType": inference_result["model_type"],
+            "modelVersion": inference_result.get("model_version", "unknown"),
+            "observation": observation,
+            "predictions": [
+                {
+                    "targetTimestamp": to_java_instant(inference_result["target_timestamp"]),
+                    "predictedVehicles": max(0.0, float(inference_result["next_prediction"])),
+                    "confidence": 0.95 if uncertainty else None,
+                    "lowerBoundVehicles": max(0.0, float(uncertainty["lower_95"])) if uncertainty else None,
+                    "upperBoundVehicles": max(0.0, float(uncertainty["upper_95"])) if uncertainty else None,
+                    "congestionThreshold": congestion["threshold"],
+                    "congestionExpected": congestion["expected"],
+                }
+            ]
+        }

@@ -32,4 +32,16 @@ public class KafkaTopicConfig {
                 .replicas(replicas)
                 .build();
     }
+
+    @Bean
+    public NewTopic trafficPredictionsGeneratedTopic(
+            @Value("${app.kafka.topics.traffic-predictions-generated:traffic.predictions.generated}") String topic,
+            @Value("${app.kafka.partitions.traffic-predictions-generated:3}") int partitions,
+            @Value("${app.kafka.replicas.traffic-predictions-generated:1}") int replicas
+    ) {
+        return TopicBuilder.name(topic)
+                .partitions(partitions)
+                .replicas(replicas)
+                .build();
+    }
 }

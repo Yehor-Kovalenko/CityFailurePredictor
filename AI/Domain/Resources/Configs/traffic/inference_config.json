@@ -15,6 +15,12 @@
     "horizon": 24
   },
 
+  "anomaly": {
+    "z_threshold": 3.0,
+    "min_relative_deviation": 0.5,
+    "congestion_thresholds": {"1": 89, "2": 30, "3": 30, "4": 13}
+  },
+
   "data": {
     "frequency": "1H",
     "target_column": "Vehicles",

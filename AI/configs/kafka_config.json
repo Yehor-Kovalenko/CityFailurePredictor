@@ -1,9 +1,12 @@
 {
   "bootstrap_servers": "kafka:9092",
   "group_id": "ai-prediction-service",
+  "traffic_group_id": "ai-traffic-prediction-service",
   "topics": {
     "electricity_raw": "electricity.readings.raw",
-    "predictions_generated": "predictions.generated"
+    "predictions_generated": "predictions.generated",
+    "traffic_raw": "traffic.readings.raw",
+    "traffic_predictions_generated": "traffic.predictions.generated"
   },
   "auto_offset_reset": "earliest",
   "enable_auto_commit": false

@@ -102,11 +102,15 @@ public class NotificationService {
     }
 
     private String buildTitle(AlertCreatedEvent event) {
+        String subject = event.alertType() != null && event.alertType().startsWith("TRAFFIC")
+                ? "traffic"
+                : "energy consumption";
+
         return switch (parseSeverity(event.severity())) {
-            case CRITICAL -> "Critical energy consumption alert";
-            case HIGH -> "High energy consumption alert";
-            case MEDIUM -> "Medium energy consumption alert";
-            case LOW -> "Low energy consumption alert";
+            case CRITICAL -> "Critical " + subject + " alert";
+            case HIGH -> "High " + subject + " alert";
+            case MEDIUM -> "Medium " + subject + " alert";
+            case LOW -> "Low " + subject + " alert";
         };
     }
 

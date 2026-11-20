@@ -58,6 +58,32 @@ def route_is_feasible(route, capacity, distance_fn=euclidean_distance):
     return True
 
 
+def route_schedule(route, distance_fn=euclidean_distance):
+    """Arrival and departure time at every customer of route = [depot, c1, ..., ck, depot]."""
+    schedule = []
+    current_time = 0.0
+
+    for prev, customer in zip(route, route[1:-1]):
+        arrival = max(current_time + distance_fn(prev, customer), customer.ready)
+        current_time = arrival + customer.service
+
+        schedule.append((customer, arrival, current_time))
+
+    return schedule
+
+
+def haversine_distance(a, b):
+    """Great-circle distance in kilometres; x is longitude and y is latitude, in degrees."""
+    lon1, lat1, lon2, lat2 = map(math.radians, (a.x, a.y, b.x, b.y))
+
+    h = (
+        math.sin((lat2 - lat1) / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
+    )
+
+    return 2 * 6371.0088 * math.asin(math.sqrt(h))
+
+
 def validate_instance(depot, customers, capacity, distance_fn=euclidean_distance):
     ids = [c.id for c in customers]
 

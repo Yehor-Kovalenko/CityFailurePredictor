@@ -306,6 +306,8 @@ services:
       LOG_FILE: /var/log/services/data-ingestion-service.log
       <<: *mtls-environment
       DATASET_PATH: /data/low-carbon-london
+      APP_DATASET_TRAFFIC_BASE_PATH: /data/traffic
+      APP_INGESTION_TRAFFIC_SCHEDULER_ENABLED: ${TRAFFIC_SCHEDULER_ENABLED:-false}
     depends_on:
       certs-init:
         condition: service_completed_successfully
@@ -325,6 +327,7 @@ services:
       - tls-certs:/etc/cfp/certs:ro
       - ./datasets/low-carbon-london:/data/low-carbon-london:ro
       - ./datasets/sample:/data/sample:ro
+      - ./datasets/traffic:/data/traffic:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 5s
