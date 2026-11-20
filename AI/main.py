@@ -31,15 +31,16 @@ consumer_threads = []
 
 @asynccontextmanager
 async def lifespan(_app):
-    yield
+    try:
+        yield
+    finally:
+        # Leave the consumer groups on shutdown, so the next instance gets the
+        # partitions at once instead of waiting for the session timeout.
+        for consumer in list(running_consumers):
+            consumer.stop()
 
-    # Leave the consumer groups on shutdown, so the next instance gets the
-    # partitions at once instead of waiting for the session timeout.
-    for consumer in list(running_consumers):
-        consumer.stop()
-
-    for thread in consumer_threads:
-        thread.join(timeout=10)
+        for thread in consumer_threads:
+            thread.join(timeout=10)
 
 
 app = FastAPI(title="AI Service", lifespan=lifespan)
