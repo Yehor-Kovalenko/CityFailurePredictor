@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 
 
@@ -28,6 +30,9 @@ class InferenceEnergyService:
         self.window_size = config["features"]["window_size"]
         self.lookback_hours = config["features"]["lookback_hours"]
         self.horizon = config["features"]["horizon"]
+
+        # Weights live in <model type>/<run timestamp>/model.joblib
+        self.model_version = Path(self.model_path).parent.name
 
         self.model = self._load_model()
 
@@ -76,6 +81,56 @@ class InferenceEnergyService:
         return np.array(preds)
 
     # ----------------------------
+    def _uncertainty(self, X):
+
+        if self.model_type == "ngboost":
+            dist = self.model.model.pred_dist(X)
+
+            mean = float(np.asarray(dist.loc)[0])
+            std = float(np.asarray(dist.scale)[0])
+            lower = float(dist.ppf(0.025)[0])
+            upper = float(dist.ppf(0.975)[0])
+
+        else:
+            # XGBoost has no predictive distribution; the interval comes from
+            # the residual spread stored with the weights.
+            if getattr(self.model, "residual_std", None) is None:
+                return None
+
+            mean_arr, std_arr = self.model.predict_mean_std(X)
+            lower_arr, upper_arr = self.model.predict_interval(X, confidence=0.95)
+
+            mean, std = float(mean_arr[0]), float(std_arr[0])
+            lower, upper = float(lower_arr[0]), float(upper_arr[0])
+
+        return {
+            "mean": mean,
+            "std": std,
+            "lower_95": lower,
+            "upper_95": upper,
+        }
+
+    # ----------------------------
+    def predict_next(self, values):
+        """One-step prediction with its 95% interval; used for every Kafka reading."""
+
+        X = self._build_input(values)
+
+        uncertainty = self._uncertainty(X)
+
+        if self.model_type == "ngboost":
+            next_pred = uncertainty["mean"]
+        else:
+            next_pred = float(self.model.predict(X)[0])
+
+        return {
+            "model_type": self.model_type,
+            "model_version": self.model_version,
+            "next_prediction": next_pred,
+            "uncertainty": uncertainty,
+        }
+
+    # ----------------------------
     def handle_request(self, request):
 
         logger.info(
@@ -87,53 +142,14 @@ class InferenceEnergyService:
 
         values = np.asarray(request.data)
 
-        X = self._build_input(values)
-
-        next_pred = self.model.predict(X)[0]
-
-        horizon_pred = self._forecast(values)
-
-        logger.info("Prediction generated next=%s horizon_len=%s",
-                    next_pred,
-                    len(horizon_pred))
-
-        uncertainty = None
-
-        if self.model_type == "ngboost":
-            logger.info("Computing NGBoost uncertainty")
-
-            dist = self.model.model.pred_dist(X)
-
-            mean = np.asarray(dist.loc)[0]
-            std = np.asarray(dist.scale)[0]
-
-            alpha = 0.05
-            lower = dist.ppf(alpha / 2)
-            upper = dist.ppf(1 - alpha / 2)
-
-            uncertainty = {
-                "mean": float(mean),
-                "std": float(std),
-                "lower_95": float(lower[0]),
-                "upper_95": float(upper[0]),
-            }
-
-            logger.info(
-                "Uncertainty computed mean=%s std=%s",
-                mean,
-                std,
-            )
-
         result = {
             "task": request.task,
             "timestamp": request.timestamp.isoformat(),
-            "model_type": self.model_type,
-            "next_prediction": float(next_pred),
-            "forecast": horizon_pred.tolist(),
-            "uncertainty": uncertainty,
+            **self.predict_next(values),
+            "forecast": self._forecast(values).tolist(),
         }
 
-        logger.info("Inference completed successfully")
+        logger.info("Inference completed successfully next=%s", result["next_prediction"])
 
         return result
 
