@@ -1,7 +1,7 @@
+import logging
+from pathlib import Path
 
 import numpy as np
-import logging
-
 import pandas as pd
 
 from AI.Domain.Models.ngboost_model import NGBoostModel
@@ -9,6 +9,8 @@ from AI.Domain.Models.xgboost_model import XGBoostModel
 from AI.Domain.Datasets.feature_builder_traffic import TrafficFeatureBuilder
 
 logger = logging.getLogger(__name__)
+
+STEP = pd.Timedelta(hours=1)
 
 
 class InferenceTrafficService:
@@ -19,6 +21,9 @@ class InferenceTrafficService:
 
         self.model_type = config["model"]["type"].lower()
         self.model_path = config["model"]["path"]
+
+        # Weights live in <model type>/<run timestamp>/model.joblib
+        self.model_version = Path(self.model_path).parent.name
 
         # must match training
         self.window_size = config["features"]["window_size"]
@@ -53,60 +58,110 @@ class InferenceTrafficService:
         return model
 
     # ----------------------------
-    def _prepare_input(self, df):
-        """
-        df must be LAST N rows of ONE junction
-        with columns: DateTime, Vehicles, Junction
-        """
+    def knows_junction(self, junction_id) -> bool:
+        return self.builder.knows_junction(junction_id)
 
-        X, _ = self.builder.transform(df)
+    # ----------------------------
+    def _build_input(self, values, target_time, junction_id):
 
-        if len(X) == 0:
+        values = np.asarray(values, dtype=float)
+
+        if len(values) < self.window_size:
             raise ValueError(
                 f"Not enough data to build features. Need at least window_size={self.window_size} rows."
             )
 
-        return X[-1].reshape(1, -1)
+        row = self.builder.features_for(
+            values[-self.window_size:],
+            target_time,
+            self.builder.junction_code(junction_id),
+        )
+
+        return np.asarray(row, dtype=float).reshape(1, -1)
 
     # ----------------------------
-    def _forecast(self, df):
+    def _uncertainty(self, X):
+
+        if self.model_type == "ngboost":
+            dist = self.model.model.pred_dist(X)
+
+            mean = float(np.asarray(dist.loc)[0])
+            std = float(np.asarray(dist.scale)[0])
+            lower = float(dist.ppf(0.025)[0])
+            upper = float(dist.ppf(0.975)[0])
+
+        else:
+            if getattr(self.model, "residual_std", None) is None:
+                return None
+
+            mean_arr, std_arr = self.model.predict_mean_std(X)
+            lower_arr, upper_arr = self.model.predict_interval(X, confidence=0.95)
+
+            mean, std = float(mean_arr[0]), float(std_arr[0])
+            lower, upper = float(lower_arr[0]), float(upper_arr[0])
+
+        return {
+            "mean": mean,
+            "std": std,
+            "lower_95": lower,
+            "upper_95": upper,
+        }
+
+    # ----------------------------
+    def predict_next(self, values, last_timestamp, junction_id):
+        """
+        Forecast for the hour after `last_timestamp`, from the readings of one
+        junction that end at `last_timestamp`.
+        """
+
+        target_time = pd.Timestamp(last_timestamp) + STEP
+
+        X = self._build_input(values, target_time, junction_id)
+
+        uncertainty = self._uncertainty(X)
+
+        if self.model_type == "ngboost":
+            next_pred = uncertainty["mean"]
+        else:
+            next_pred = float(self.model.predict(X)[0])
+
+        return {
+            "model_type": self.model_type,
+            "model_version": self.model_version,
+            "target_timestamp": target_time.to_pydatetime(),
+            "next_prediction": next_pred,
+            "uncertainty": uncertainty,
+        }
+
+    # ----------------------------
+    def _forecast(self, values, last_timestamp, junction_id):
         """
         recursive multi-step forecast
         """
 
-        df = df.copy()
+        window = list(np.asarray(values, dtype=float)[-self.window_size:])
+        target_time = pd.Timestamp(last_timestamp)
 
         preds = []
 
         for _ in range(self.horizon):
 
-            X, _ = self.builder.transform(df)
+            target_time = target_time + STEP
 
-            if len(X) == 0:
-                raise ValueError(
-                    f"Not enough data during forecasting. Need at least window_size={self.window_size} rows."
-                )
+            X = self._build_input(window, target_time, junction_id)
 
-            x_last = X[-1].reshape(1, -1)
-
-            pred = self.model.predict(x_last)[0]
+            pred = float(self.model.predict(X)[0])
             preds.append(pred)
 
-            # append predicted row (fake next timestamp)
-            next_time = df["DateTime"].iloc[-1] + pd.Timedelta(hours=1)
-
-            new_row = {
-                "DateTime": next_time,
-                "Vehicles": pred,
-                "Junction": df["Junction"].iloc[0]
-            }
-
-            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+            window = window[1:] + [pred]
 
         return np.array(preds)
 
     # ----------------------------
     def handle_request(self, request):
+        """
+        request.data: rows of ONE junction with columns DateTime, Vehicles, Junction
+        """
 
         logger.info(
             "Traffic inference request task=%s data_len=%s",
@@ -114,78 +169,26 @@ class InferenceTrafficService:
             len(request.data),
         )
 
-        df = request.data  # MUST be dataframe
+        df = request.data.copy()
+        df["DateTime"] = pd.to_datetime(df["DateTime"])
+        df = df.sort_values("DateTime")
 
-        X = self._prepare_input(df)
-        next_pred = self.model.predict(X)[0]
+        junctions = df["Junction"].unique()
 
-        horizon_pred = self._forecast(df)
+        if len(junctions) != 1:
+            raise ValueError(f"Expected readings of one junction, got {sorted(junctions)}")
+
+        values = df["Vehicles"].to_numpy(dtype=float)
+        last_timestamp = df["DateTime"].iloc[-1]
+        junction_id = junctions[0]
 
         result = {
             "task": request.task,
             "timestamp": request.timestamp.isoformat(),
-            "model_type": self.model_type,
-            "next_prediction": float(next_pred),
-            "forecast": horizon_pred.tolist(),
+            **self.predict_next(values, last_timestamp, junction_id),
+            "forecast": self._forecast(values, last_timestamp, junction_id).tolist(),
         }
 
         logger.info("Traffic inference completed")
 
         return result
-
-
-
-
-# def main():
-#
-#     # ----------------------------
-#     # LOAD CONFIG
-#     # ----------------------------
-#     config_path = "../../Domain/Resources/Configs/traffic/inference_config.json"
-#
-#     with open(config_path, "r") as f:
-#         config = json.load(f)
-#
-#     # ----------------------------
-#     # INIT SERVICE
-#     # ----------------------------
-#     service = InferenceTrafficService(config)
-#
-#     # ----------------------------
-#     # LOAD SOME FAKE / REAL DATA
-#     # ----------------------------
-#     df = pd.read_csv("/home/agata/Documents/8/a lot of data/traffic.csv")
-#
-#     df["DateTime"] = pd.to_datetime(df["DateTime"])
-#     df = df.sort_values(["Junction", "DateTime"])
-#
-#     # pick ONE junction (IMPORTANT)
-#     junction_id = df["Junction"].iloc[0]
-#     df_junction = df[df["Junction"] == junction_id].copy()
-#
-#     # take last 48 rows as history
-#     last_history = df_junction.tail(48)
-#
-#     # ----------------------------
-#     # CREATE REQUEST
-#     # ----------------------------
-#     request = Request(
-#         task="traffic",
-#         timestamp=datetime.utcnow(),
-#         data=last_history
-#     )
-#
-#     # ----------------------------
-#     # RUN INFERENCE
-#     # ----------------------------
-#     result = service.handle_request(request)
-#
-#     # ----------------------------
-#     # PRINT RESULT
-#     # ----------------------------
-#     print("\n=== RESULT ===")
-#     print(result)
-#
-#
-# if __name__ == "__main__":
-#     main()

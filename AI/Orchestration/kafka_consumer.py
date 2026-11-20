@@ -7,6 +7,7 @@ from typing import Callable
 
 import logging
 from AI.Domain.Datasets.electricity_reading import ElectricityReading
+from AI.Domain.Datasets.traffic_reading import TrafficReading
 from AI.Orchestration.request_manager import Request
 
 logger = logging.getLogger(__name__)
@@ -30,13 +31,16 @@ class KafkaConsumerConfig:
     retry_backoff_seconds: float = 1.0
 
 
-class ElectricityReadingKafkaConsumer:
+class ReadingKafkaConsumer:
     """
     At-least-once processing: an offset is committed only after the handler
     succeeded. A message that cannot be parsed is logged and skipped, because
     retrying it can never work. A message whose handling keeps failing stops
     the consumer without a commit, so it is delivered again after a restart.
     """
+
+    task: str
+    reading_class: type
 
     def __init__(self, config: KafkaConsumerConfig, consumer=None):
         self.config = config
@@ -118,10 +122,10 @@ class ElectricityReadingKafkaConsumer:
         raw_value = message.value().decode("utf-8")
         event = json.loads(raw_value)
 
-        reading = ElectricityReading.from_kafka_event(event)
+        reading = self.reading_class.from_kafka_event(event)
 
         return Request(
-            task="electricity",
+            task=self.task,
             data=reading,
             timestamp=reading.reading_timestamp
         )
@@ -142,3 +146,13 @@ class ElectricityReadingKafkaConsumer:
             return
 
         raise KafkaException(error)
+
+
+class ElectricityReadingKafkaConsumer(ReadingKafkaConsumer):
+    task = "electricity"
+    reading_class = ElectricityReading
+
+
+class TrafficReadingKafkaConsumer(ReadingKafkaConsumer):
+    task = "traffic"
+    reading_class = TrafficReading

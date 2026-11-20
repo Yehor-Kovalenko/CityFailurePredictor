@@ -23,6 +23,31 @@ class TrafficFeatureBuilder:
         self.use_day_of_week = use_day_of_week
         self.junction_ids = sorted(junction_ids) if junction_ids is not None else None
 
+    def knows_junction(self, junction) -> bool:
+        return self.junction_ids is None or self._code_of(junction) is not None
+
+    def junction_code(self, junction) -> int:
+        """Value of the junction feature for one junction id."""
+
+        if self.junction_ids is None:
+            return 0
+
+        code = self._code_of(junction)
+
+        if code is None:
+            raise ValueError(
+                f"Unknown junctions [{junction!r}]; the model was trained on {self.junction_ids}"
+            )
+
+        return code
+
+    def _code_of(self, junction):
+        for code, known in enumerate(self.junction_ids):
+            if known == junction or str(known) == str(junction):
+                return code
+
+        return None
+
     def _encode_junctions(self, junctions: pd.Series) -> pd.Series:
 
         if self.junction_ids is None:
@@ -37,6 +62,31 @@ class TrafficFeatureBuilder:
             )
 
         return junctions.map(codes)
+
+    def features_for(self, window, target_time, junction_code) -> list:
+        """
+        One model input row: the readings before `target_time`, the calendar
+        features of `target_time` itself, and the junction code.
+        """
+
+        target_time = pd.Timestamp(target_time)
+
+        row = list(window)
+
+        # time features (KEEP EXACT ORDER)
+        if self.use_hour:
+            row.append(target_time.hour)
+
+        if self.use_day_of_week:
+            row.append(target_time.dayofweek)
+
+        row.append(target_time.month)
+        row.append(target_time.dayofyear)
+
+        # junction LAST
+        row.append(junction_code)
+
+        return row
 
     def transform(self, df: pd.DataFrame):
 
@@ -54,27 +104,11 @@ class TrafficFeatureBuilder:
 
             for i in range(self.window_size, len(group)):
 
-                t = group.loc[i, "DateTime"]
-
-                row = []
-
-                # window
-                row.extend(vehicles[i - self.window_size:i])
-
-                # time features (KEEP EXACT ORDER)
-                if self.use_hour:
-                    row.append(t.hour)
-
-                if self.use_day_of_week:
-                    row.append(t.dayofweek)
-
-                row.append(t.month)
-                row.append(t.dayofyear)
-
-                # junction LAST
-                row.append(junction)
-
-                X.append(row)
+                X.append(self.features_for(
+                    vehicles[i - self.window_size:i],
+                    group.loc[i, "DateTime"],
+                    junction,
+                ))
                 y.append(vehicles[i])
 
         return np.array(X), np.array(y)

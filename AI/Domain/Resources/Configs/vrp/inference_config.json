@@ -7,5 +7,6 @@
   "beta": 2.0,
   "coef_urgency": 2.0,
   "tabu_max_iterations": 30,
-  "tabu_tenure": 10
+  "tabu_tenure": 10,
+  "max_customers": 150
 }
